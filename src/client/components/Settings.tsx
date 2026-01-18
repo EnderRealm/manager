@@ -5,6 +5,7 @@ import {
   useAddProject,
   useRemoveProject,
 } from "../hooks/useConfig.ts";
+import { colors, fonts, radius, buttonSecondary, buttonPrimary, buttonDanger, inputBase } from "../theme.ts";
 
 export function Settings() {
   const navigate = useNavigate();
@@ -47,15 +48,12 @@ export function Settings() {
   };
 
   const inputStyle = {
-    padding: "8px 12px",
-    fontSize: "14px",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
+    ...inputBase,
     flex: 1,
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "800px" }}>
+    <div style={{ padding: "24px", maxWidth: "800px", fontFamily: fonts.sans }}>
       <div
         style={{
           display: "flex",
@@ -66,27 +64,21 @@ export function Settings() {
       >
         <button
           onClick={() => navigate("/")}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#fff",
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
+          style={buttonSecondary}
         >
           ← Back
         </button>
-        <h1 style={{ margin: 0 }}>Settings</h1>
+        <h1 style={{ margin: 0, color: colors.textPrimary }}>Settings</h1>
       </div>
 
-      <h2>Managed Projects</h2>
+      <h2 style={{ color: colors.textPrimary }}>Managed Projects</h2>
 
       {isLoading ? (
-        <div>Loading...</div>
+        <div style={{ color: colors.textSecondary }}>Loading...</div>
       ) : (
         <div style={{ marginBottom: "24px" }}>
           {projects?.length === 0 && (
-            <div style={{ color: "#666", marginBottom: "16px" }}>
+            <div style={{ color: colors.textMuted, marginBottom: "16px" }}>
               No projects configured. Add one below.
             </div>
           )}
@@ -98,28 +90,22 @@ export function Settings() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "12px",
-                backgroundColor: "#f5f5f5",
-                borderRadius: "4px",
+                backgroundColor: colors.surface,
+                borderRadius: radius.sm,
                 marginBottom: "8px",
+                border: `1px solid ${colors.border}`,
               }}
             >
               <div>
-                <div style={{ fontWeight: 500 }}>{project.name}</div>
-                <div style={{ color: "#666", fontSize: "12px" }}>
+                <div style={{ fontWeight: 500, color: colors.textPrimary }}>{project.name}</div>
+                <div style={{ color: colors.textMuted, fontSize: "12px", fontFamily: fonts.mono }}>
                   {project.path}
                 </div>
               </div>
               <button
                 onClick={() => handleRemove(project.name)}
                 disabled={removeMutation.isPending}
-                style={{
-                  padding: "6px 12px",
-                  backgroundColor: "#e74c3c",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                }}
+                style={buttonDanger}
               >
                 Remove
               </button>
@@ -128,7 +114,7 @@ export function Settings() {
         </div>
       )}
 
-      <h2>Add Project</h2>
+      <h2 style={{ color: colors.textPrimary }}>Add Project</h2>
       <form onSubmit={handleAdd}>
         <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
           <input
@@ -143,25 +129,18 @@ export function Settings() {
             placeholder="Absolute path to project"
             value={path}
             onChange={(e) => setPath(e.target.value)}
-            style={{ ...inputStyle, flex: 2 }}
+            style={{ ...inputStyle, flex: 2, fontFamily: fonts.mono }}
           />
           <button
             type="submit"
             disabled={addMutation.isPending}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#3498db",
-              color: "#fff",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
+            style={buttonPrimary}
           >
             {addMutation.isPending ? "Adding..." : "Add"}
           </button>
         </div>
         {error && (
-          <div style={{ color: "#e74c3c", fontSize: "14px" }}>{error}</div>
+          <div style={{ color: colors.danger, fontSize: "14px" }}>{error}</div>
         )}
       </form>
     </div>

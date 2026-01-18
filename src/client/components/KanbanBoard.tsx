@@ -8,6 +8,7 @@ import {
   type Ticket,
 } from "../hooks/useTickets.ts";
 import { TicketCard } from "./TicketCard.tsx";
+import { colors, fonts, radius, buttonSecondary, buttonPrimary } from "../theme.ts";
 
 interface ColumnProps {
   title: string;
@@ -32,10 +33,11 @@ function Column({
     <div
       style={{
         flex: 1,
-        minWidth: "250px",
-        backgroundColor: "#f5f5f5",
-        borderRadius: "8px",
+        minWidth: "280px",
+        backgroundColor: colors.canvas,
+        borderRadius: radius.lg,
         padding: "12px",
+        border: `1px solid ${colors.borderMuted}`,
       }}
     >
       <div
@@ -46,14 +48,17 @@ function Column({
           marginBottom: "12px",
         }}
       >
-        <h3 style={{ margin: 0, color }}>{title}</h3>
+        <h3 style={{ margin: 0, color, fontFamily: fonts.sans, fontSize: "14px", fontWeight: 600 }}>
+          {title}
+        </h3>
         <span
           style={{
             backgroundColor: color,
-            color: "#fff",
+            color: colors.canvas,
             padding: "2px 8px",
             borderRadius: "12px",
             fontSize: "12px",
+            fontWeight: 600,
           }}
         >
           {tickets.length}
@@ -71,7 +76,7 @@ function Column({
           />
         ))}
         {tickets.length === 0 && (
-          <div style={{ color: "#999", textAlign: "center", padding: "20px" }}>
+          <div style={{ color: colors.textMuted, textAlign: "center", padding: "20px", fontSize: "14px" }}>
             No tickets
           </div>
         )}
@@ -98,7 +103,7 @@ export function KanbanBoard() {
   };
 
   return (
-    <div style={{ padding: "24px" }}>
+    <div style={{ padding: "24px", fontFamily: fonts.sans }}>
       <div
         style={{
           display: "flex",
@@ -109,28 +114,14 @@ export function KanbanBoard() {
       >
         <button
           onClick={() => navigate("/")}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#fff",
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
+          style={buttonSecondary}
         >
           ← Back
         </button>
-        <h1 style={{ margin: 0 }}>{projectId}</h1>
+        <h1 style={{ margin: 0, color: colors.textPrimary }}>{projectId}</h1>
         <button
           onClick={() => navigate(`/projects/${projectId}/tickets/new`)}
-          style={{
-            marginLeft: "auto",
-            padding: "8px 16px",
-            backgroundColor: "#3498db",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
+          style={{ ...buttonPrimary, marginLeft: "auto" }}
         >
           + New Ticket
         </button>
@@ -146,14 +137,14 @@ export function KanbanBoard() {
         <Column
           title="In Progress"
           tickets={inProgressTickets}
-          color="#e67e22"
+          color={colors.warning}
           onClose={close}
           onTicketClick={handleTicketClick}
         />
         <Column
           title="Ready"
           tickets={readyTickets ?? []}
-          color="#27ae60"
+          color={colors.success}
           onStart={start}
           onClose={close}
           onTicketClick={handleTicketClick}
@@ -161,13 +152,13 @@ export function KanbanBoard() {
         <Column
           title="Blocked"
           tickets={blockedTickets ?? []}
-          color="#e74c3c"
+          color={colors.danger}
           onTicketClick={handleTicketClick}
         />
         <Column
           title="Closed"
           tickets={closedTickets ?? []}
-          color="#95a5a6"
+          color={colors.textMuted}
           onReopen={reopen}
           onTicketClick={handleTicketClick}
         />

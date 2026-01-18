@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCreateTicket, type CreateTicketInput } from "../hooks/useTickets.ts";
+import { colors, fonts, radius, buttonSecondary, buttonPrimary, inputBase } from "../theme.ts";
 
 export function TicketForm() {
   const { id: projectId } = useParams<{ id: string }>();
@@ -48,11 +49,14 @@ export function TicketForm() {
   };
 
   const inputStyle = {
+    ...inputBase,
     width: "100%",
-    padding: "8px 12px",
-    fontSize: "14px",
-    border: "1px solid #ddd",
-    borderRadius: "4px",
+    boxSizing: "border-box" as const,
+  };
+
+  const selectStyle = {
+    ...inputBase,
+    width: "100%",
     boxSizing: "border-box" as const,
   };
 
@@ -60,10 +64,11 @@ export function TicketForm() {
     display: "block",
     marginBottom: "4px",
     fontWeight: 500,
+    color: colors.textPrimary,
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "600px" }}>
+    <div style={{ padding: "24px", maxWidth: "600px", fontFamily: fonts.sans }}>
       <div
         style={{
           display: "flex",
@@ -74,23 +79,17 @@ export function TicketForm() {
       >
         <button
           onClick={() => navigate(`/projects/${projectId}`)}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#fff",
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
+          style={buttonSecondary}
         >
           ← Cancel
         </button>
-        <h1 style={{ margin: 0 }}>New Ticket</h1>
+        <h1 style={{ margin: 0, color: colors.textPrimary }}>New Ticket</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: "16px" }}>
           <label style={labelStyle}>
-            Title <span style={{ color: "#e74c3c" }}>*</span>
+            Title <span style={{ color: colors.danger }}>*</span>
           </label>
           <input
             type="text"
@@ -98,11 +97,11 @@ export function TicketForm() {
             onChange={(e) => setTitle(e.target.value)}
             style={{
               ...inputStyle,
-              borderColor: errors.title ? "#e74c3c" : "#ddd",
+              borderColor: errors.title ? colors.danger : colors.border,
             }}
           />
           {errors.title && (
-            <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>
+            <div style={{ color: colors.danger, fontSize: "12px", marginTop: "4px" }}>
               {errors.title}
             </div>
           )}
@@ -114,7 +113,7 @@ export function TicketForm() {
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              style={inputStyle}
+              style={selectStyle}
             >
               <option value="task">Task</option>
               <option value="feature">Feature</option>
@@ -128,7 +127,7 @@ export function TicketForm() {
             <select
               value={priority}
               onChange={(e) => setPriority(Number(e.target.value))}
-              style={inputStyle}
+              style={selectStyle}
             >
               <option value={0}>P0 - Critical</option>
               <option value={1}>P1 - High</option>
@@ -156,7 +155,10 @@ export function TicketForm() {
             value={parent}
             onChange={(e) => setParent(e.target.value)}
             placeholder="e.g., m-2b6b"
-            style={inputStyle}
+            style={{
+              ...inputStyle,
+              fontFamily: fonts.mono,
+            }}
           />
         </div>
 
@@ -164,11 +166,8 @@ export function TicketForm() {
           type="submit"
           disabled={createMutation.isPending}
           style={{
+            ...buttonPrimary,
             padding: "12px 24px",
-            backgroundColor: "#3498db",
-            color: "#fff",
-            border: "none",
-            borderRadius: "4px",
             cursor: createMutation.isPending ? "not-allowed" : "pointer",
             opacity: createMutation.isPending ? 0.7 : 1,
           }}
@@ -177,7 +176,7 @@ export function TicketForm() {
         </button>
 
         {createMutation.isError && (
-          <div style={{ color: "#e74c3c", marginTop: "12px" }}>
+          <div style={{ color: colors.danger, marginTop: "12px" }}>
             Failed to create ticket. Please try again.
           </div>
         )}

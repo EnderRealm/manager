@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { Ticket } from "../hooks/useTickets.ts";
+import { colors, fonts, radius, typeColors, priorityColors } from "../theme.ts";
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -8,22 +10,6 @@ interface TicketCardProps {
   onClick?: () => void;
 }
 
-const typeColors: Record<string, string> = {
-  epic: "#9b59b6",
-  feature: "#3498db",
-  task: "#2ecc71",
-  bug: "#e74c3c",
-  chore: "#95a5a6",
-};
-
-const priorityColors: Record<number, string> = {
-  0: "#e74c3c",
-  1: "#e67e22",
-  2: "#f1c40f",
-  3: "#3498db",
-  4: "#95a5a6",
-};
-
 export function TicketCard({
   ticket,
   onStart,
@@ -31,96 +17,92 @@ export function TicketCard({
   onReopen,
   onClick,
 }: TicketCardProps) {
+  const [hovered, setHovered] = useState(false);
+
+  const actionButtonStyle = {
+    padding: "4px 10px",
+    fontSize: "12px",
+    color: colors.textPrimary,
+    backgroundColor: colors.overlay,
+    border: `1px solid ${colors.border}`,
+    borderRadius: radius.sm,
+    cursor: "pointer",
+    fontWeight: 500,
+  };
+
   return (
     <div
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        border: "1px solid #ddd",
-        borderRadius: "6px",
-        padding: "12px",
+        borderTop: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
+        borderRight: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
+        borderBottom: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
+        borderLeft: `3px solid ${priorityColors[ticket.priority] ?? colors.textMuted}`,
+        borderRadius: radius.md,
         marginBottom: "8px",
-        backgroundColor: "#fff",
+        backgroundColor: hovered ? colors.overlay : colors.surfaceRaised,
         cursor: onClick ? "pointer" : "default",
-        borderLeft: `4px solid ${priorityColors[ticket.priority] ?? "#95a5a6"}`,
+        fontFamily: fonts.sans,
+        transition: "background-color 0.15s",
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <span style={{ color: "#666", fontSize: "12px", fontFamily: "monospace" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "6px 10px",
+          backgroundColor: colors.canvas,
+          borderBottom: `1px solid ${colors.border}`,
+        }}
+      >
+        <span style={{ color: colors.textMuted, fontSize: "11px", fontFamily: fonts.mono }}>
           {ticket.id}
         </span>
         <span
           style={{
-            backgroundColor: typeColors[ticket.type] ?? "#95a5a6",
-            color: "#fff",
-            padding: "2px 6px",
-            borderRadius: "4px",
+            color: typeColors[ticket.type] ?? colors.textMuted,
             fontSize: "10px",
             textTransform: "uppercase",
+            fontWeight: 600,
+            letterSpacing: "0.5px",
           }}
         >
           {ticket.type}
         </span>
       </div>
 
-      <div style={{ marginTop: "8px", fontWeight: 500 }}>
-        {ticket.title || "(no title)"}
-      </div>
-
-      {(onStart || onClose || onReopen) && (
-        <div
-          style={{ marginTop: "12px", display: "flex", gap: "8px" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {onStart && ticket.status === "open" && (
-            <button
-              onClick={onStart}
-              style={{
-                padding: "4px 8px",
-                fontSize: "12px",
-                backgroundColor: "#e67e22",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Start
-            </button>
-          )}
-          {onClose && (ticket.status === "open" || ticket.status === "in_progress") && (
-            <button
-              onClick={onClose}
-              style={{
-                padding: "4px 8px",
-                fontSize: "12px",
-                backgroundColor: "#27ae60",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Close
-            </button>
-          )}
-          {onReopen && ticket.status === "closed" && (
-            <button
-              onClick={onReopen}
-              style={{
-                padding: "4px 8px",
-                fontSize: "12px",
-                backgroundColor: "#3498db",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Reopen
-            </button>
-          )}
+      <div style={{ padding: "10px 12px" }}>
+        <div style={{ fontWeight: 500, color: colors.textPrimary }}>
+          {ticket.title || "(no title)"}
         </div>
-      )}
+
+        {(onStart || onClose || onReopen) && (
+          <div
+            style={{ marginTop: "10px", display: "flex", gap: "8px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {onStart && ticket.status === "open" && (
+              <button onClick={onStart} style={actionButtonStyle}>
+                Start
+              </button>
+            )}
+            {onClose && (ticket.status === "open" || ticket.status === "in_progress") && (
+              <button onClick={onClose} style={actionButtonStyle}>
+                Close
+              </button>
+            )}
+            {onReopen && ticket.status === "closed" && (
+              <button onClick={onReopen} style={actionButtonStyle}>
+                Reopen
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
