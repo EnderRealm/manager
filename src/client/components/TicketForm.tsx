@@ -1,0 +1,187 @@
+import { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useCreateTicket, type CreateTicketInput } from "../hooks/useTickets.ts";
+
+export function TicketForm() {
+  const { id: projectId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const createMutation = useCreateTicket(projectId!);
+
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState("task");
+  const [priority, setPriority] = useState(2);
+  const [description, setDescription] = useState("");
+  const [parent, setParent] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!title.trim()) {
+      newErrors.title = "Title is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validate()) {
+      return;
+    }
+
+    const input: CreateTicketInput = {
+      title: title.trim(),
+      type,
+      priority,
+      description: description.trim() || undefined,
+      parent: parent.trim() || undefined,
+    };
+
+    createMutation.mutate(input, {
+      onSuccess: () => {
+        navigate(`/projects/${projectId}`);
+      },
+    });
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "8px 12px",
+    fontSize: "14px",
+    border: "1px solid #ddd",
+    borderRadius: "4px",
+    boxSizing: "border-box" as const,
+  };
+
+  const labelStyle = {
+    display: "block",
+    marginBottom: "4px",
+    fontWeight: 500,
+  };
+
+  return (
+    <div style={{ padding: "24px", maxWidth: "600px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "16px",
+          marginBottom: "24px",
+        }}
+      >
+        <button
+          onClick={() => navigate(`/projects/${projectId}`)}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#fff",
+            border: "1px solid #ddd",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          ← Cancel
+        </button>
+        <h1 style={{ margin: 0 }}>New Ticket</h1>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: "16px" }}>
+          <label style={labelStyle}>
+            Title <span style={{ color: "#e74c3c" }}>*</span>
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{
+              ...inputStyle,
+              borderColor: errors.title ? "#e74c3c" : "#ddd",
+            }}
+          />
+          {errors.title && (
+            <div style={{ color: "#e74c3c", fontSize: "12px", marginTop: "4px" }}>
+              {errors.title}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: "16px", marginBottom: "16px" }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Type</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="task">Task</option>
+              <option value="feature">Feature</option>
+              <option value="bug">Bug</option>
+              <option value="epic">Epic</option>
+              <option value="chore">Chore</option>
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Priority</label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(Number(e.target.value))}
+              style={inputStyle}
+            >
+              <option value={0}>P0 - Critical</option>
+              <option value={1}>P1 - High</option>
+              <option value={2}>P2 - Medium</option>
+              <option value={3}>P3 - Low</option>
+              <option value={4}>P4 - Backlog</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "16px" }}>
+          <label style={labelStyle}>Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            style={inputStyle}
+          />
+        </div>
+
+        <div style={{ marginBottom: "24px" }}>
+          <label style={labelStyle}>Parent Ticket ID</label>
+          <input
+            type="text"
+            value={parent}
+            onChange={(e) => setParent(e.target.value)}
+            placeholder="e.g., m-2b6b"
+            style={inputStyle}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={createMutation.isPending}
+          style={{
+            padding: "12px 24px",
+            backgroundColor: "#3498db",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+            cursor: createMutation.isPending ? "not-allowed" : "pointer",
+            opacity: createMutation.isPending ? 0.7 : 1,
+          }}
+        >
+          {createMutation.isPending ? "Creating..." : "Create Ticket"}
+        </button>
+
+        {createMutation.isError && (
+          <div style={{ color: "#e74c3c", marginTop: "12px" }}>
+            Failed to create ticket. Please try again.
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}

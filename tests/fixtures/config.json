@@ -1,0 +1,5 @@
+{
+  "projects": [
+    { "name": "test-project", "path": "/Users/smacbeth/code/manager/tests/fixtures" }
+  ]
+}

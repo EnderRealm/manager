@@ -1,0 +1,12 @@
+{
+  "projects": [
+    {
+      "name": "manager",
+      "path": "/Users/smacbeth/code/manager"
+    },
+    {
+      "name": "Ghostwheel",
+      "path": "/Users/smacbeth/code/ghostwheel"
+    }
+  ]
+}

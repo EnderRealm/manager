@@ -1,3 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Logs
+logs/
+*.log
+
 # Environment
 .env
 .env.local
