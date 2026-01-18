@@ -6,18 +6,12 @@ import { colors, fonts, radius, typeColors, priorityColors } from "../theme.ts";
 
 interface TicketCardProps {
   ticket: Ticket;
-  onStart?: () => void;
-  onClose?: () => void;
-  onReopen?: () => void;
   onClick?: () => void;
   isDragDisabled?: boolean;
 }
 
 export function TicketCard({
   ticket,
-  onStart,
-  onClose,
-  onReopen,
   onClick,
   isDragDisabled,
 }: TicketCardProps) {
@@ -29,17 +23,6 @@ export function TicketCard({
       data: { ticket },
       disabled: isDragDisabled,
     });
-
-  const actionButtonStyle = {
-    padding: "4px 10px",
-    fontSize: "12px",
-    color: colors.textPrimary,
-    backgroundColor: colors.overlay,
-    border: `1px solid ${colors.border}`,
-    borderRadius: radius.sm,
-    cursor: "pointer",
-    fontWeight: 500,
-  };
 
   const style = {
     borderTop: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
@@ -98,29 +81,6 @@ export function TicketCard({
         <div style={{ fontWeight: 500, color: colors.textPrimary }}>
           {ticket.title || "(no title)"}
         </div>
-
-        {(onStart || onClose || onReopen) && (
-          <div
-            style={{ marginTop: "10px", display: "flex", gap: "8px" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {onStart && ticket.status === "open" && (
-              <button onClick={onStart} style={actionButtonStyle}>
-                Start
-              </button>
-            )}
-            {onClose && (ticket.status === "open" || ticket.status === "in_progress") && (
-              <button onClick={onClose} style={actionButtonStyle}>
-                Close
-              </button>
-            )}
-            {onReopen && ticket.status === "closed" && (
-              <button onClick={onReopen} style={actionButtonStyle}>
-                Reopen
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

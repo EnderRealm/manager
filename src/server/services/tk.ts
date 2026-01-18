@@ -1,5 +1,11 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { logger } from "../lib/logger.ts";
+
+export function hasTk(projectPath: string): boolean {
+  return existsSync(join(projectPath, ".tickets"));
+}
 
 export interface Ticket {
   id: string;
@@ -13,6 +19,10 @@ export interface Ticket {
   parent?: string;
   title?: string;
   description?: string;
+  design?: string;
+  acceptanceCriteria?: string;
+  children?: string[];
+  rawContent?: string;
 }
 
 interface ExecResult {
@@ -69,28 +79,33 @@ export async function execTk(
 }
 
 export async function getTickets(projectPath: string): Promise<Ticket[]> {
-  // Run both commands to get full data + titles
-  const [queryResult, lsResult] = await Promise.all([
-    execTk(projectPath, ["query"]),
-    execTk(projectPath, ["ls"]),
-  ]);
+  try {
+    // Run both commands to get full data + titles
+    const [queryResult, lsResult] = await Promise.all([
+      execTk(projectPath, ["query"]),
+      execTk(projectPath, ["ls"]),
+    ]);
 
-  // Parse titles from ls output
-  const titles = parseListOutput(lsResult.stdout);
-  const titleMap = new Map(titles.map((t) => [t.id, t.title]));
+    // Parse titles from ls output
+    const titles = parseListOutput(lsResult.stdout);
+    const titleMap = new Map(titles.map((t) => [t.id, t.title]));
 
-  const tickets: Ticket[] = [];
-  for (const line of queryResult.stdout.trim().split("\n")) {
-    if (!line) continue;
-    const raw = JSON.parse(line);
-    tickets.push({
-      ...raw,
-      priority: parseInt(raw.priority, 10) || 2,
-      title: titleMap.get(raw.id),
-    });
+    const tickets: Ticket[] = [];
+    for (const line of queryResult.stdout.trim().split("\n")) {
+      if (!line) continue;
+      const raw = JSON.parse(line);
+      tickets.push({
+        ...raw,
+        priority: parseInt(raw.priority, 10) || 2,
+        title: titleMap.get(raw.id),
+      });
+    }
+
+    return tickets;
+  } catch {
+    // tk not initialized in this project
+    return [];
   }
-
-  return tickets;
 }
 
 function parseListOutput(stdout: string): { id: string; title: string }[] {
@@ -107,56 +122,122 @@ function parseListOutput(stdout: string): { id: string; title: string }[] {
 }
 
 export async function getReadyTickets(projectPath: string): Promise<Ticket[]> {
-  const { stdout } = await execTk(projectPath, ["ready"]);
-  const parsed = parseListOutput(stdout);
-  const allTickets = await getTickets(projectPath);
+  try {
+    const { stdout } = await execTk(projectPath, ["ready"]);
+    const parsed = parseListOutput(stdout);
+    const allTickets = await getTickets(projectPath);
 
-  const results: Ticket[] = [];
-  for (const p of parsed) {
-    const ticket = allTickets.find((t) => t.id === p.id);
-    if (ticket) {
-      results.push({ ...ticket, title: p.title });
+    const results: Ticket[] = [];
+    for (const p of parsed) {
+      const ticket = allTickets.find((t) => t.id === p.id);
+      if (ticket) {
+        results.push({ ...ticket, title: p.title });
+      }
     }
+    return results;
+  } catch {
+    return [];
   }
-  return results;
 }
 
 export async function getBlockedTickets(projectPath: string): Promise<Ticket[]> {
-  const { stdout } = await execTk(projectPath, ["blocked"]);
-  const parsed = parseListOutput(stdout);
-  const allTickets = await getTickets(projectPath);
+  try {
+    const { stdout } = await execTk(projectPath, ["blocked"]);
+    const parsed = parseListOutput(stdout);
+    const allTickets = await getTickets(projectPath);
 
-  const results: Ticket[] = [];
-  for (const p of parsed) {
-    const ticket = allTickets.find((t) => t.id === p.id);
-    if (ticket) {
-      results.push({ ...ticket, title: p.title });
+    const results: Ticket[] = [];
+    for (const p of parsed) {
+      const ticket = allTickets.find((t) => t.id === p.id);
+      if (ticket) {
+        results.push({ ...ticket, title: p.title });
+      }
     }
+    return results;
+  } catch {
+    return [];
   }
-  return results;
 }
 
 export async function getClosedTickets(
   projectPath: string,
   limit = 10
 ): Promise<Ticket[]> {
-  const { stdout } = await execTk(projectPath, ["closed", `--limit=${limit}`]);
-  const parsed = parseListOutput(stdout);
-  const allTickets = await getTickets(projectPath);
+  try {
+    const { stdout } = await execTk(projectPath, ["closed", `--limit=${limit}`]);
+    const parsed = parseListOutput(stdout);
+    const allTickets = await getTickets(projectPath);
 
-  const results: Ticket[] = [];
-  for (const p of parsed) {
-    const ticket = allTickets.find((t) => t.id === p.id);
-    if (ticket) {
-      results.push({ ...ticket, title: p.title });
+    const results: Ticket[] = [];
+    for (const p of parsed) {
+      const ticket = allTickets.find((t) => t.id === p.id);
+      if (ticket) {
+        results.push({ ...ticket, title: p.title });
+      }
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+function parseArrayField(value: string | undefined): string[] {
+  if (!value) return [];
+  // Handle both JSON format ["a", "b"] and tk format [a, b]
+  try {
+    return JSON.parse(value);
+  } catch {
+    // Parse tk format: [m-a7da, m-b2c3] -> ["m-a7da", "m-b2c3"]
+    const match = value.match(/^\[(.*)\]$/);
+    if (match && match[1]) {
+      return match[1].split(",").map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  }
+}
+
+interface ParsedBody {
+  description: string;
+  design?: string;
+  acceptanceCriteria?: string;
+  children?: string[];
+}
+
+function parseTicketBody(body: string): ParsedBody {
+  const sections: Record<string, string> = {};
+  let currentSection = "description";
+  const lines: string[] = [];
+
+  for (const line of body.split("\n")) {
+    const sectionMatch = line.match(/^##\s+(.+)$/);
+    if (sectionMatch) {
+      sections[currentSection] = lines.join("\n").trim();
+      lines.length = 0;
+      currentSection = sectionMatch[1]!.toLowerCase().replace(/\s+/g, "_");
+    } else {
+      lines.push(line);
     }
   }
-  return results;
+  sections[currentSection] = lines.join("\n").trim();
+
+  // Parse children from the Children section (ticket IDs like m-xxxx)
+  let children: string[] | undefined;
+  if (sections.children) {
+    children = sections.children.match(/m-[a-f0-9]{4}/g) ?? undefined;
+  }
+
+  return {
+    description: sections.description || "",
+    design: sections.design || undefined,
+    acceptanceCriteria: sections.acceptance_criteria || undefined,
+    children,
+  };
 }
 
 export async function getTicket(
   projectPath: string,
-  id: string
+  id: string,
+  allTickets?: Ticket[]
 ): Promise<Ticket | null> {
   try {
     const { stdout } = await execTk(projectPath, ["show", id]);
@@ -185,27 +266,41 @@ export async function getTicket(
       }
     }
 
-    // Extract description (everything after the title)
-    let description = "";
+    // Extract body (everything after the title)
+    let body = "";
     if (titleIndex >= 0 && titleIndex < lines.length - 1) {
-      description = lines.slice(titleIndex + 1).join("\n").trim();
+      body = lines.slice(titleIndex + 1).join("\n").trim();
     }
 
+    const parsed = parseTicketBody(body);
     const priority = frontmatter.priority;
     const parent = frontmatter.parent;
+    const ticketId = frontmatter.id || id;
+
+    // Find children (tickets whose parent is this ticket)
+    let children: string[] | undefined;
+    const tickets = allTickets ?? await getTickets(projectPath);
+    const childTickets = tickets.filter((t) => t.parent === ticketId);
+    if (childTickets.length > 0) {
+      children = childTickets.map((t) => t.id);
+    }
 
     return {
-      id: frontmatter.id || id,
+      id: ticketId,
       status: frontmatter.status || "open",
-      deps: frontmatter.deps ? JSON.parse(frontmatter.deps) : [],
-      links: frontmatter.links ? JSON.parse(frontmatter.links) : [],
+      deps: parseArrayField(frontmatter.deps),
+      links: parseArrayField(frontmatter.links),
       created: frontmatter.created || "",
       type: frontmatter.type || "task",
       priority: priority ? parseInt(priority, 10) : 2,
       assignee: frontmatter.assignee,
       parent: parent?.split("#")[0]?.trim(),
       title,
-      description: description || undefined,
+      description: parsed.description || undefined,
+      design: parsed.design,
+      acceptanceCriteria: parsed.acceptanceCriteria,
+      children,
+      rawContent: stdout,
     };
   } catch {
     return null;

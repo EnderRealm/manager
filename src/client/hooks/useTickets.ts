@@ -12,6 +12,10 @@ export interface Ticket {
   parent?: string;
   title?: string;
   description?: string;
+  design?: string;
+  acceptanceCriteria?: string;
+  children?: string[];
+  rawContent?: string;
 }
 
 async function fetchTickets(

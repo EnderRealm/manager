@@ -9,13 +9,33 @@ export interface TicketCounts {
   closed: number;
 }
 
+export interface GitInfo {
+  branch: string | null;
+  isDirty: boolean;
+  ahead: number;
+  behind: number;
+  unstaged: number;
+  untracked: number;
+}
+
+export interface LanguageBreakdown {
+  language: string;
+  percentage: number;
+  color: string;
+}
+
+export interface LanguageInfo {
+  primary: string;
+  breakdown: LanguageBreakdown[];
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
   path: string;
-  branch: string | null;
-  isDirty: boolean;
-  language: string;
+  git: GitInfo;
+  languages: LanguageInfo;
+  hasTk: boolean;
   ticketCounts: TicketCounts;
 }
 

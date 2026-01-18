@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   useConfigProjects,
   useAddProject,
   useRemoveProject,
 } from "../hooks/useConfig.ts";
-import { colors, fonts, radius, buttonSecondary, buttonPrimary, buttonDanger, inputBase } from "../theme.ts";
+import { colors, fonts, radius, buttonPrimary, buttonDanger, inputBase } from "../theme.ts";
 
 export function Settings() {
-  const navigate = useNavigate();
   const { data: projects, isLoading } = useConfigProjects();
   const addMutation = useAddProject();
   const removeMutation = useRemoveProject();
@@ -53,25 +51,19 @@ export function Settings() {
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "800px", fontFamily: fonts.sans }}>
-      <div
+    <div style={{ padding: 24, maxWidth: 800 }}>
+      <h1
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "16px",
-          marginBottom: "24px",
+          margin: "0 0 24px",
+          fontSize: 24,
+          fontWeight: 600,
+          color: colors.textPrimary,
         }}
       >
-        <button
-          onClick={() => navigate("/")}
-          style={buttonSecondary}
-        >
-          ← Back
-        </button>
-        <h1 style={{ margin: 0, color: colors.textPrimary }}>Settings</h1>
-      </div>
+        Configuration
+      </h1>
 
-      <h2 style={{ color: colors.textPrimary }}>Managed Projects</h2>
+      <h2 style={{ color: colors.textPrimary, fontSize: 18, marginTop: 0 }}>Managed Projects</h2>
 
       {isLoading ? (
         <div style={{ color: colors.textSecondary }}>Loading...</div>

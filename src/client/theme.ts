@@ -27,34 +27,32 @@ export const colors = {
   dangerEmphasis: "#da3633",
   done: "#a371f7",
 
-  // Ticket type colors (adapted for dark theme)
-  epic: "#a371f7",
-  feature: "#58a6ff",
-  task: "#3fb950",
-  bug: "#f85149",
-  chore: "#8b949e",
 };
 
+// Priority: Only urgent items get color (heat = attention)
 export const priorityColors: Record<number, string> = {
-  0: "#f85149",
-  1: "#d29922",
-  2: "#58a6ff",
-  3: "#3fb950",
-  4: "#6e7681",
+  0: "#f85149", // P0 - Red (critical, needs immediate attention)
+  1: "#d29922", // P1 - Orange (high priority)
+  2: "#6e7681", // P2 - Grey (normal)
+  3: "#6e7681", // P3 - Grey (low)
+  4: "#4a5058", // P4 - Darker grey (backlog)
 };
 
+// Status: All neutral - position on board communicates status
 export const statusColors: Record<string, string> = {
-  open: "#58a6ff",
-  in_progress: "#d29922",
-  closed: "#3fb950",
+  open: "#6e7681",
+  in_progress: "#8b949e",
+  blocked: "#8b949e",
+  closed: "#4a5058",
 };
 
+// Type: All neutral - use text to differentiate, not color
 export const typeColors: Record<string, string> = {
-  epic: colors.epic,
-  feature: colors.feature,
-  task: colors.task,
-  bug: colors.bug,
-  chore: colors.chore,
+  epic: "#8b949e",
+  feature: "#8b949e",
+  task: "#8b949e",
+  bug: "#8b949e",
+  chore: "#6e7681",
 };
 
 export const fonts = {

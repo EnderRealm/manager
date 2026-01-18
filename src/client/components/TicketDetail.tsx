@@ -1,15 +1,177 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
 import { useTicket, useTicketMutations } from "../hooks/useTickets.ts";
-import { colors, fonts, radius, buttonSecondary, typeColors, statusColors } from "../theme.ts";
+import { colors, fonts, radius, typeColors, statusColors } from "../theme.ts";
 
-export function TicketDetail() {
-  const { id: projectId, ticketId } = useParams<{
-    id: string;
-    ticketId: string;
-  }>();
-  const navigate = useNavigate();
-  const { data: ticket, isLoading, error } = useTicket(projectId!, ticketId!);
-  const { start, close, reopen } = useTicketMutations(projectId!);
+type TabId = "detail" | "raw";
+
+function Tab({
+  id,
+  label,
+  active,
+  onClick,
+}: {
+  id: TabId;
+  label: string;
+  active: boolean;
+  onClick: (id: TabId) => void;
+}) {
+  return (
+    <button
+      onClick={() => onClick(id)}
+      style={{
+        padding: "8px 16px",
+        fontSize: 14,
+        fontWeight: 500,
+        color: active ? colors.textPrimary : colors.textMuted,
+        backgroundColor: "transparent",
+        border: "none",
+        borderBottom: active ? `2px solid ${colors.accent}` : "2px solid transparent",
+        cursor: "pointer",
+        marginBottom: -1,
+        transition: "color 0.15s, border-color 0.15s",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Tabs({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: TabId;
+  onTabChange: (id: TabId) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 4,
+        borderBottom: `1px solid ${colors.border}`,
+        marginBottom: 24,
+      }}
+    >
+      <Tab id="detail" label="Detail" active={activeTab === "detail"} onClick={onTabChange} />
+      <Tab id="raw" label="Raw" active={activeTab === "raw"} onClick={onTabChange} />
+    </div>
+  );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <h3
+      style={{
+        fontSize: 14,
+        fontWeight: 600,
+        color: colors.textPrimary,
+        marginBottom: 12,
+        marginTop: 0,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      {children}
+    </h3>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        marginTop: 24,
+        padding: 16,
+        backgroundColor: colors.surface,
+        border: `1px solid ${colors.borderMuted}`,
+        borderRadius: radius.md,
+      }}
+    >
+      <SectionHeader>{title}</SectionHeader>
+      {children}
+    </div>
+  );
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul
+          key={`list-${elements.length}`}
+          style={{
+            margin: "8px 0",
+            paddingLeft: 20,
+            color: colors.textSecondary,
+            lineHeight: 1.6,
+          }}
+        >
+          {listItems.map((item, i) => (
+            <li key={i} style={{ marginBottom: 4 }}>
+              {item}
+            </li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const listMatch = line.match(/^[-*]\s+(.+)$/);
+
+    if (listMatch) {
+      listItems.push(listMatch[1]!);
+    } else {
+      flushList();
+      if (line.trim()) {
+        elements.push(
+          <p
+            key={`p-${i}`}
+            style={{
+              margin: "8px 0",
+              color: colors.textSecondary,
+              lineHeight: 1.6,
+            }}
+          >
+            {line}
+          </p>
+        );
+      }
+    }
+  }
+  flushList();
+
+  return <div style={{ marginTop: -8 }}>{elements}</div>;
+}
+
+interface TicketDetailContentProps {
+  projectId: string;
+  ticketId: string;
+  onTicketClick?: (ticketId: string) => void;
+}
+
+export function TicketDetailContent({
+  projectId,
+  ticketId,
+  onTicketClick,
+}: TicketDetailContentProps) {
+  const { data: ticket, isLoading, error } = useTicket(projectId, ticketId);
+  const { start, close, reopen } = useTicketMutations(projectId);
+  const [activeTab, setActiveTab] = useState<TabId>("detail");
 
   const actionButtonStyle = {
     padding: "8px 16px",
@@ -24,7 +186,7 @@ export function TicketDetail() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: "24px", color: colors.textSecondary, fontFamily: fonts.sans }}>
+      <div style={{ padding: 24, color: colors.textSecondary }}>
         Loading ticket...
       </div>
     );
@@ -32,34 +194,41 @@ export function TicketDetail() {
 
   if (error || !ticket) {
     return (
-      <div style={{ padding: "24px", color: colors.danger, fontFamily: fonts.sans }}>
+      <div style={{ padding: 24, color: colors.danger }}>
         Error loading ticket
       </div>
     );
   }
 
+  const handleChildClick = (childId: string, e: React.MouseEvent) => {
+    if (onTicketClick) {
+      e.preventDefault();
+      onTicketClick(childId);
+    }
+  };
+
   return (
-    <div style={{ padding: "24px", maxWidth: "800px", fontFamily: fonts.sans }}>
+    <div style={{ padding: 24 }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "16px",
-          marginBottom: "24px",
+          gap: 12,
+          marginBottom: 16,
         }}
       >
-        <button
-          onClick={() => navigate(`/projects/${projectId}`)}
-          style={buttonSecondary}
+        <span
+          style={{
+            color: colors.textMuted,
+            fontFamily: fonts.mono,
+            fontSize: 13,
+          }}
         >
-          ← Back
-        </button>
-        <span style={{ color: colors.textMuted, fontFamily: fonts.mono }}>
           {ticket.id}
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <span
           style={{
             backgroundColor: statusColors[ticket.status] ?? colors.textMuted,
@@ -136,25 +305,104 @@ export function TicketDetail() {
         <div style={{ color: colors.textSecondary }}>{new Date(ticket.created).toLocaleString()}</div>
       </div>
 
-      {ticket.description && (
-        <div
-          style={{
-            marginTop: "24px",
-            padding: "16px",
-            backgroundColor: colors.canvas,
-            border: `1px solid ${colors.borderMuted}`,
-            borderRadius: radius.md,
-            whiteSpace: "pre-wrap",
-            color: colors.textSecondary,
-            lineHeight: 1.6,
-            fontFamily: fonts.sans,
-          }}
-        >
-          {ticket.description}
-        </div>
+      <div style={{ marginTop: 24 }}>
+        <Tabs activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+
+      {activeTab === "detail" && (
+        <>
+          <Section title="Description">
+            <p
+              style={{
+                margin: 0,
+                color: ticket.description ? colors.textSecondary : colors.textMuted,
+                lineHeight: 1.6,
+                fontStyle: ticket.description ? "normal" : "italic",
+              }}
+            >
+              {ticket.description || "No description"}
+            </p>
+          </Section>
+
+          <Section title="Design">
+            {ticket.design ? (
+              <MarkdownContent content={ticket.design} />
+            ) : (
+              <p style={{ margin: 0, color: colors.textMuted, fontStyle: "italic" }}>
+                No design notes
+              </p>
+            )}
+          </Section>
+
+          <Section title="Acceptance Criteria">
+            {ticket.acceptanceCriteria ? (
+              <MarkdownContent content={ticket.acceptanceCriteria} />
+            ) : (
+              <p style={{ margin: 0, color: colors.textMuted, fontStyle: "italic" }}>
+                No acceptance criteria
+              </p>
+            )}
+          </Section>
+
+          <Section title="Children">
+            {ticket.children && ticket.children.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {ticket.children.map((childId) => (
+                  <Link
+                    key={childId}
+                    to={`/projects/${projectId}/tickets/${childId}`}
+                    onClick={(e) => handleChildClick(childId, e)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 12px",
+                      backgroundColor: colors.overlay,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: radius.sm,
+                      color: colors.accent,
+                      fontFamily: fonts.mono,
+                      fontSize: 13,
+                      textDecoration: "none",
+                      width: "fit-content",
+                    }}
+                  >
+                    {childId}
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p style={{ margin: 0, color: colors.textMuted, fontStyle: "italic" }}>
+                No child tickets
+              </p>
+            )}
+          </Section>
+        </>
       )}
 
-      <div style={{ marginTop: "24px", display: "flex", gap: "8px" }}>
+      {activeTab === "raw" && (
+        <pre
+          style={{
+            margin: 0,
+            padding: 16,
+            backgroundColor: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.md,
+            overflow: "auto",
+            fontSize: 13,
+            lineHeight: 1.6,
+            color: ticket.rawContent ? colors.textSecondary : colors.textMuted,
+            fontFamily: fonts.mono,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontStyle: ticket.rawContent ? "normal" : "italic",
+          }}
+        >
+          {ticket.rawContent || "No raw content available"}
+        </pre>
+      )}
+
+      <div style={{ marginTop: 24, display: "flex", gap: 8 }}>
         {ticket.status === "open" && (
           <button onClick={() => start(ticket.id)} style={actionButtonStyle}>
             Start
@@ -171,6 +419,28 @@ export function TicketDetail() {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// Page wrapper that uses URL params
+export function TicketDetail() {
+  const { id: projectId, ticketId } = useParams<{
+    id: string;
+    ticketId: string;
+  }>();
+
+  if (!projectId || !ticketId) {
+    return (
+      <div style={{ padding: 24, color: colors.danger }}>
+        Missing project or ticket ID
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 800 }}>
+      <TicketDetailContent projectId={projectId} ticketId={ticketId} />
     </div>
   );
 }

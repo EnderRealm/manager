@@ -6,6 +6,8 @@ export interface GitStatus {
   isDirty: boolean;
   ahead: number;
   behind: number;
+  unstaged: number;
+  untracked: number;
 }
 
 async function execGit(
@@ -50,7 +52,22 @@ export async function getGitStatus(
   const branch = branchResult.stdout.trim() || "HEAD";
 
   const statusResult = await execGit(projectPath, ["status", "--porcelain"]);
-  const isDirty = statusResult.stdout.trim().length > 0;
+  const statusLines = statusResult.stdout.trim().split("\n").filter(Boolean);
+  const isDirty = statusLines.length > 0;
+
+  // Count unstaged (modified but not staged) and untracked files
+  let unstaged = 0;
+  let untracked = 0;
+  for (const line of statusLines) {
+    const index = line[0];
+    const worktree = line[1];
+    if (line.startsWith("??")) {
+      untracked++;
+    } else if (worktree === "M" || worktree === "D") {
+      // Modified or deleted in worktree but not staged
+      unstaged++;
+    }
+  }
 
   let ahead = 0;
   let behind = 0;
@@ -68,5 +85,5 @@ export async function getGitStatus(
     ahead = parseInt(parts[1] ?? "0", 10) || 0;
   }
 
-  return { branch, isDirty, ahead, behind };
+  return { branch, isDirty, ahead, behind, unstaged, untracked };
 }

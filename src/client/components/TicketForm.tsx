@@ -3,10 +3,19 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCreateTicket, type CreateTicketInput } from "../hooks/useTickets.ts";
 import { colors, fonts, radius, buttonSecondary, buttonPrimary, inputBase } from "../theme.ts";
 
-export function TicketForm() {
-  const { id: projectId } = useParams<{ id: string }>();
+interface TicketFormContentProps {
+  projectId: string;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+export function TicketFormContent({
+  projectId,
+  onSuccess,
+  onCancel,
+}: TicketFormContentProps) {
   const navigate = useNavigate();
-  const createMutation = useCreateTicket(projectId!);
+  const createMutation = useCreateTicket(projectId);
 
   const [title, setTitle] = useState("");
   const [type, setType] = useState("task");
@@ -43,9 +52,21 @@ export function TicketForm() {
 
     createMutation.mutate(input, {
       onSuccess: () => {
-        navigate(`/projects/${projectId}`);
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          navigate(`/projects/${projectId}`);
+        }
       },
     });
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate(`/projects/${projectId}`);
+    }
   };
 
   const inputStyle = {
@@ -68,23 +89,17 @@ export function TicketForm() {
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "600px", fontFamily: fonts.sans }}>
-      <div
+    <div style={{ padding: 24 }}>
+      <h1
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "16px",
-          marginBottom: "24px",
+          margin: "0 0 24px",
+          fontSize: 24,
+          fontWeight: 600,
+          color: colors.textPrimary,
         }}
       >
-        <button
-          onClick={() => navigate(`/projects/${projectId}`)}
-          style={buttonSecondary}
-        >
-          ← Cancel
-        </button>
-        <h1 style={{ margin: 0, color: colors.textPrimary }}>New Ticket</h1>
-      </div>
+        New Ticket
+      </h1>
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: "16px" }}>
@@ -162,18 +177,30 @@ export function TicketForm() {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={createMutation.isPending}
-          style={{
-            ...buttonPrimary,
-            padding: "12px 24px",
-            cursor: createMutation.isPending ? "not-allowed" : "pointer",
-            opacity: createMutation.isPending ? 0.7 : 1,
-          }}
-        >
-          {createMutation.isPending ? "Creating..." : "Create Ticket"}
-        </button>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button
+            type="submit"
+            disabled={createMutation.isPending}
+            style={{
+              ...buttonPrimary,
+              padding: "12px 24px",
+              cursor: createMutation.isPending ? "not-allowed" : "pointer",
+              opacity: createMutation.isPending ? 0.7 : 1,
+            }}
+          >
+            {createMutation.isPending ? "Creating..." : "Create Ticket"}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            style={{
+              ...buttonSecondary,
+              padding: "12px 24px",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
 
         {createMutation.isError && (
           <div style={{ color: colors.danger, marginTop: "12px" }}>
@@ -181,6 +208,25 @@ export function TicketForm() {
           </div>
         )}
       </form>
+    </div>
+  );
+}
+
+// Page wrapper that uses URL params
+export function TicketForm() {
+  const { id: projectId } = useParams<{ id: string }>();
+
+  if (!projectId) {
+    return (
+      <div style={{ padding: 24, color: colors.danger }}>
+        Missing project ID
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      <TicketFormContent projectId={projectId} />
     </div>
   );
 }

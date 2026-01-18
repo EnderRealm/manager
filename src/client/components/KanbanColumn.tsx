@@ -10,9 +10,6 @@ interface KanbanColumnProps {
   title: string;
   tickets: Ticket[];
   color: string;
-  onStart?: (id: string) => void;
-  onClose?: (id: string) => void;
-  onReopen?: (id: string) => void;
   onTicketClick?: (id: string) => void;
   isValidDrop?: boolean;
   isDragging?: boolean;
@@ -23,9 +20,6 @@ export function KanbanColumn({
   title,
   tickets,
   color,
-  onStart,
-  onClose,
-  onReopen,
   onTicketClick,
   isValidDrop,
   isDragging,
@@ -98,9 +92,6 @@ export function KanbanColumn({
           <TicketCard
             key={ticket.id}
             ticket={ticket}
-            onStart={onStart ? () => onStart(ticket.id) : undefined}
-            onClose={onClose ? () => onClose(ticket.id) : undefined}
-            onReopen={onReopen ? () => onReopen(ticket.id) : undefined}
             onClick={onTicketClick ? () => onTicketClick(ticket.id) : undefined}
           />
         ))}
