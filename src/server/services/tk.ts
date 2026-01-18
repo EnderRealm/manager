@@ -12,6 +12,7 @@ export interface Ticket {
   assignee?: string;
   parent?: string;
   title?: string;
+  description?: string;
 }
 
 interface ExecResult {
@@ -68,15 +69,24 @@ export async function execTk(
 }
 
 export async function getTickets(projectPath: string): Promise<Ticket[]> {
-  const { stdout } = await execTk(projectPath, ["query"]);
-  const tickets: Ticket[] = [];
+  // Run both commands to get full data + titles
+  const [queryResult, lsResult] = await Promise.all([
+    execTk(projectPath, ["query"]),
+    execTk(projectPath, ["ls"]),
+  ]);
 
-  for (const line of stdout.trim().split("\n")) {
+  // Parse titles from ls output
+  const titles = parseListOutput(lsResult.stdout);
+  const titleMap = new Map(titles.map((t) => [t.id, t.title]));
+
+  const tickets: Ticket[] = [];
+  for (const line of queryResult.stdout.trim().split("\n")) {
     if (!line) continue;
     const raw = JSON.parse(line);
     tickets.push({
       ...raw,
       priority: parseInt(raw.priority, 10) || 2,
+      title: titleMap.get(raw.id),
     });
   }
 
@@ -150,13 +160,15 @@ export async function getTicket(
 ): Promise<Ticket | null> {
   try {
     const { stdout } = await execTk(projectPath, ["show", id]);
-    // Parse frontmatter and title from tk show output
+    // Parse frontmatter, title, and body from tk show output
     const lines = stdout.split("\n");
     let inFrontmatter = false;
     const frontmatter: Record<string, string> = {};
     let title = "";
+    let titleIndex = -1;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
       if (line === "---") {
         inFrontmatter = !inFrontmatter;
         continue;
@@ -168,8 +180,15 @@ export async function getTicket(
         }
       } else if (line.startsWith("# ")) {
         title = line.slice(2).trim();
+        titleIndex = i;
         break;
       }
+    }
+
+    // Extract description (everything after the title)
+    let description = "";
+    if (titleIndex >= 0 && titleIndex < lines.length - 1) {
+      description = lines.slice(titleIndex + 1).join("\n").trim();
     }
 
     const priority = frontmatter.priority;
@@ -186,6 +205,7 @@ export async function getTicket(
       assignee: frontmatter.assignee,
       parent: parent?.split("#")[0]?.trim(),
       title,
+      description: description || undefined,
     };
   } catch {
     return null;

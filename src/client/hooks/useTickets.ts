@@ -11,6 +11,7 @@ export interface Ticket {
   assignee?: string;
   parent?: string;
   title?: string;
+  description?: string;
 }
 
 async function fetchTickets(

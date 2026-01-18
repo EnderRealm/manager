@@ -136,6 +136,24 @@ export function TicketDetail() {
         <div style={{ color: colors.textSecondary }}>{new Date(ticket.created).toLocaleString()}</div>
       </div>
 
+      {ticket.description && (
+        <div
+          style={{
+            marginTop: "24px",
+            padding: "16px",
+            backgroundColor: colors.canvas,
+            border: `1px solid ${colors.borderMuted}`,
+            borderRadius: radius.md,
+            whiteSpace: "pre-wrap",
+            color: colors.textSecondary,
+            lineHeight: 1.6,
+            fontFamily: fonts.sans,
+          }}
+        >
+          {ticket.description}
+        </div>
+      )}
+
       <div style={{ marginTop: "24px", display: "flex", gap: "8px" }}>
         {ticket.status === "open" && (
           <button onClick={() => start(ticket.id)} style={actionButtonStyle}>
