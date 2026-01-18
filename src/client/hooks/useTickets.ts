@@ -152,6 +152,18 @@ export function useTicketMutations(projectId: string) {
     onSuccess: invalidateTickets,
   });
 
+  // Track which tickets are currently being mutated
+  const pendingTicketIds = new Set<string>();
+  if (startMutation.isPending && startMutation.variables) {
+    pendingTicketIds.add(startMutation.variables);
+  }
+  if (closeMutation.isPending && closeMutation.variables) {
+    pendingTicketIds.add(closeMutation.variables);
+  }
+  if (reopenMutation.isPending && reopenMutation.variables) {
+    pendingTicketIds.add(reopenMutation.variables);
+  }
+
   return {
     start: startMutation.mutate,
     close: closeMutation.mutate,
@@ -160,5 +172,6 @@ export function useTicketMutations(projectId: string) {
       startMutation.isPending ||
       closeMutation.isPending ||
       reopenMutation.isPending,
+    pendingTicketIds,
   };
 }
