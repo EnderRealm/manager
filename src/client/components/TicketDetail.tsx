@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useTicket, useTicketMutations } from "../hooks/useTickets.ts";
+import { useTicket, useTicketMutations, useAllTickets, type Ticket } from "../hooks/useTickets.ts";
 import { colors, fonts, radius, typeColors, statusColors } from "../theme.ts";
 
 type TabId = "detail" | "raw";
@@ -101,6 +101,133 @@ function Section({
   );
 }
 
+interface DependencyTreeItemProps {
+  ticketId: string;
+  allTickets: Ticket[];
+  depth: number;
+  visited: Set<string>;
+  projectId: string;
+  onTicketClick?: (ticketId: string) => void;
+}
+
+function DependencyTreeItem({
+  ticketId,
+  allTickets,
+  depth,
+  visited,
+  projectId,
+  onTicketClick,
+}: DependencyTreeItemProps) {
+  const ticket = allTickets.find((t) => t.id === ticketId);
+
+  // Prevent infinite loops from circular dependencies
+  if (visited.has(ticketId)) {
+    return (
+      <div style={{ marginLeft: depth * 16, color: colors.textMuted, fontStyle: "italic" }}>
+        {ticketId} (circular reference)
+      </div>
+    );
+  }
+
+  const newVisited = new Set(visited);
+  newVisited.add(ticketId);
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (onTicketClick) {
+      e.preventDefault();
+      onTicketClick(ticketId);
+    }
+  };
+
+  return (
+    <div style={{ marginLeft: depth * 16 }}>
+      <Link
+        to={`/projects/${projectId}/tickets/${ticketId}`}
+        onClick={handleClick}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "6px 10px",
+          backgroundColor: colors.overlay,
+          border: `1px solid ${colors.border}`,
+          borderRadius: radius.sm,
+          color: colors.accent,
+          fontFamily: fonts.mono,
+          fontSize: 12,
+          textDecoration: "none",
+          marginBottom: 6,
+        }}
+      >
+        <span>{ticketId}</span>
+        {ticket && (
+          <span
+            style={{
+              color: colors.textSecondary,
+              fontFamily: fonts.sans,
+              fontSize: 12,
+              maxWidth: 200,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {ticket.title || "(no title)"}
+          </span>
+        )}
+      </Link>
+      {ticket && ticket.deps.length > 0 && (
+        <div>
+          {ticket.deps.map((depId) => (
+            <DependencyTreeItem
+              key={depId}
+              ticketId={depId}
+              allTickets={allTickets}
+              depth={depth + 1}
+              visited={newVisited}
+              projectId={projectId}
+              onTicketClick={onTicketClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DependencyTreeProps {
+  deps: string[];
+  allTickets: Ticket[];
+  projectId: string;
+  onTicketClick?: (ticketId: string) => void;
+}
+
+function DependencyTree({ deps, allTickets, projectId, onTicketClick }: DependencyTreeProps) {
+  if (deps.length === 0) {
+    return (
+      <p style={{ margin: 0, color: colors.textMuted, fontStyle: "italic" }}>
+        No dependencies
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      {deps.map((depId) => (
+        <DependencyTreeItem
+          key={depId}
+          ticketId={depId}
+          allTickets={allTickets}
+          depth={0}
+          visited={new Set()}
+          projectId={projectId}
+          onTicketClick={onTicketClick}
+        />
+      ))}
+    </div>
+  );
+}
+
 function MarkdownContent({ content }: { content: string }) {
   const lines = content.split("\n");
   const elements: React.ReactNode[] = [];
@@ -170,6 +297,7 @@ export function TicketDetailContent({
   onTicketClick,
 }: TicketDetailContentProps) {
   const { data: ticket, isLoading, error } = useTicket(projectId, ticketId);
+  const { data: allTickets } = useAllTickets(projectId);
   const { start, close, reopen } = useTicketMutations(projectId);
   const [activeTab, setActiveTab] = useState<TabId>("detail");
 
@@ -291,8 +419,8 @@ export function TicketDetailContent({
         )}
         {ticket.deps.length > 0 && (
           <>
-            <div style={{ color: colors.textMuted }}>Dependencies</div>
-            <div style={{ color: colors.accent, fontFamily: fonts.mono }}>{ticket.deps.join(", ")}</div>
+            <div style={{ color: colors.textMuted }}>Blockers</div>
+            <div style={{ color: colors.textSecondary }}>{ticket.deps.length} ticket(s)</div>
           </>
         )}
         {ticket.links.length > 0 && (
@@ -342,6 +470,15 @@ export function TicketDetailContent({
                 No acceptance criteria
               </p>
             )}
+          </Section>
+
+          <Section title="Dependencies">
+            <DependencyTree
+              deps={ticket.deps}
+              allTickets={allTickets ?? []}
+              projectId={projectId}
+              onTicketClick={onTicketClick}
+            />
           </Section>
 
           <Section title="Children">

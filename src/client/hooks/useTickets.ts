@@ -130,6 +130,40 @@ async function updateTicketStatus(
   return res.json();
 }
 
+async function addDependency(
+  projectId: string,
+  ticketId: string,
+  blockerId: string
+): Promise<Ticket> {
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}/deps`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ blockerId }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to add dependency");
+  }
+  return res.json();
+}
+
+async function removeDependency(
+  projectId: string,
+  ticketId: string,
+  blockerId: string
+): Promise<Ticket> {
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}/deps/${blockerId}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to remove dependency");
+  }
+  return res.json();
+}
+
 export function useTicketMutations(projectId: string) {
   const queryClient = useQueryClient();
 
@@ -156,6 +190,18 @@ export function useTicketMutations(projectId: string) {
     onSuccess: invalidateTickets,
   });
 
+  const addDepMutation = useMutation({
+    mutationFn: ({ ticketId, blockerId }: { ticketId: string; blockerId: string }) =>
+      addDependency(projectId, ticketId, blockerId),
+    onSuccess: invalidateTickets,
+  });
+
+  const removeDepMutation = useMutation({
+    mutationFn: ({ ticketId, blockerId }: { ticketId: string; blockerId: string }) =>
+      removeDependency(projectId, ticketId, blockerId),
+    onSuccess: invalidateTickets,
+  });
+
   // Track which tickets are currently being mutated
   const pendingTicketIds = new Set<string>();
   if (startMutation.isPending && startMutation.variables) {
@@ -172,10 +218,14 @@ export function useTicketMutations(projectId: string) {
     start: startMutation.mutate,
     close: closeMutation.mutate,
     reopen: reopenMutation.mutate,
+    addDep: addDepMutation.mutate,
+    removeDep: removeDepMutation.mutate,
     isLoading:
       startMutation.isPending ||
       closeMutation.isPending ||
-      reopenMutation.isPending,
+      reopenMutation.isPending ||
+      addDepMutation.isPending ||
+      removeDepMutation.isPending,
     pendingTicketIds,
   };
 }

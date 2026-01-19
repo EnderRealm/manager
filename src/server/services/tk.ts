@@ -362,3 +362,21 @@ export async function reopenTicket(
 ): Promise<void> {
   await execTk(projectPath, ["reopen", id]);
 }
+
+export async function addDependency(
+  projectPath: string,
+  childId: string,
+  parentId: string
+): Promise<void> {
+  // tk dep <child> <parent> makes child depend on parent
+  await execTk(projectPath, ["dep", childId, parentId]);
+}
+
+export async function removeDependency(
+  projectPath: string,
+  childId: string,
+  parentId: string
+): Promise<void> {
+  // tk undep <child> <parent> removes the dependency
+  await execTk(projectPath, ["undep", childId, parentId]);
+}

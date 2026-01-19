@@ -1,79 +1,46 @@
-import { useState, useCallback } from "react";
-import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { useState } from "react";
+import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import type { Ticket } from "../hooks/useTickets.ts";
 import { colors, fonts, radius, typeColors, priorityColors } from "../theme.ts";
 
-interface TicketCardProps {
+interface DependentCardProps {
   ticket: Ticket;
+  parentId: string;
   onClick?: () => void;
   isDragDisabled?: boolean;
-  isDropTarget?: boolean;
-  isValidDropTarget?: boolean;
 }
 
-export function TicketCard({
+export function DependentCard({
   ticket,
+  parentId,
   onClick,
   isDragDisabled,
-  isDropTarget = false,
-  isValidDropTarget = false,
-}: TicketCardProps) {
+}: DependentCardProps) {
   const [hovered, setHovered] = useState(false);
 
-  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } =
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
-      id: ticket.id,
-      data: { ticket },
+      id: `dep-${ticket.id}`,
+      data: { ticket, isDependent: true, parentId },
       disabled: isDragDisabled,
     });
 
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: `card-${ticket.id}`,
-    data: { ticket, isCard: true },
-    disabled: !isDropTarget,
-  });
-
-  // Combine refs
-  const setNodeRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      setDragRef(node);
-      setDropRef(node);
-    },
-    [setDragRef, setDropRef]
-  );
-
-  const showDropHighlight = isDropTarget && isOver && isValidDropTarget;
-  const showInvalidHighlight = isDropTarget && isOver && !isValidDropTarget;
-
-  // Determine border colors
-  let borderColor = hovered ? colors.accent : colors.borderMuted;
-  if (showDropHighlight) {
-    borderColor = colors.success;
-  } else if (showInvalidHighlight) {
-    borderColor = colors.danger;
-  }
-
   const style = {
-    borderTop: `1px solid ${borderColor}`,
-    borderRight: `1px solid ${borderColor}`,
-    borderBottom: `1px solid ${borderColor}`,
+    marginLeft: "16px",
+    borderTop: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
+    borderRight: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
+    borderBottom: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
     borderLeft: `3px solid ${priorityColors[ticket.priority] ?? colors.textMuted}`,
     borderRadius: radius.md,
     marginBottom: "8px",
-    backgroundColor: showDropHighlight
-      ? `${colors.success}15`
-      : showInvalidHighlight
-        ? `${colors.danger}10`
-        : hovered
-          ? colors.overlay
-          : colors.surfaceRaised,
+    backgroundColor: hovered ? colors.overlay : colors.surface,
     cursor: isDragDisabled ? (onClick ? "pointer" : "default") : "grab",
     fontFamily: fonts.sans,
-    transition: isDragging ? undefined : "background-color 0.15s, border-color 0.15s",
+    transition: isDragging ? undefined : "background-color 0.15s",
     overflow: "hidden" as const,
     transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0 : 1,
+    opacity: isDragging ? 0 : 0.85,
     touchAction: "none",
   };
 
@@ -92,18 +59,18 @@ export function TicketCard({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "6px 10px",
+          padding: "4px 8px",
           backgroundColor: colors.canvas,
           borderBottom: `1px solid ${colors.border}`,
         }}
       >
-        <span style={{ color: colors.textMuted, fontSize: "11px", fontFamily: fonts.mono, flex: 1 }}>
+        <span style={{ color: colors.textMuted, fontSize: "10px", fontFamily: fonts.mono, flex: 1 }}>
           {ticket.id}
         </span>
         <span
           style={{
             color: typeColors[ticket.type] ?? colors.textMuted,
-            fontSize: "10px",
+            fontSize: "9px",
             textTransform: "uppercase",
             fontWeight: 600,
             letterSpacing: "0.5px",
@@ -116,7 +83,7 @@ export function TicketCard({
         <span
           style={{
             color: priorityColors[ticket.priority] ?? colors.textMuted,
-            fontSize: "11px",
+            fontSize: "10px",
             fontWeight: 600,
             flex: 1,
             textAlign: "right",
@@ -126,8 +93,17 @@ export function TicketCard({
         </span>
       </div>
 
-      <div style={{ padding: "10px 12px" }}>
-        <div style={{ fontWeight: 500, color: colors.textPrimary }}>
+      <div style={{ padding: "6px 8px" }}>
+        <div
+          style={{
+            fontWeight: 500,
+            fontSize: "13px",
+            color: colors.textSecondary,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
           {ticket.title || "(no title)"}
         </div>
       </div>

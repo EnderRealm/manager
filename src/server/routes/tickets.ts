@@ -10,6 +10,8 @@ import {
   startTicket,
   closeTicket,
   reopenTicket,
+  addDependency,
+  removeDependency,
   type CreateTicketInput,
 } from "../services/tk.ts";
 
@@ -155,6 +157,39 @@ tickets.post("/projects/:id/tickets/:ticketId/reopen", async (c) => {
 
   const ticketId = c.req.param("ticketId");
   await reopenTicket(projectPath, ticketId);
+  const ticket = await getTicket(projectPath, ticketId);
+
+  return c.json(ticket);
+});
+
+tickets.post("/projects/:id/tickets/:ticketId/deps", async (c) => {
+  const projectPath = getProjectPath(c.req.param("id"));
+  if (!projectPath) {
+    return c.json({ error: "Project not found" }, 404);
+  }
+
+  const ticketId = c.req.param("ticketId");
+  const body = await c.req.json<{ blockerId: string }>();
+  if (!body.blockerId) {
+    return c.json({ error: "blockerId is required" }, 400);
+  }
+
+  await addDependency(projectPath, ticketId, body.blockerId);
+  const ticket = await getTicket(projectPath, ticketId);
+
+  return c.json(ticket);
+});
+
+tickets.delete("/projects/:id/tickets/:ticketId/deps/:blockerId", async (c) => {
+  const projectPath = getProjectPath(c.req.param("id"));
+  if (!projectPath) {
+    return c.json({ error: "Project not found" }, 404);
+  }
+
+  const ticketId = c.req.param("ticketId");
+  const blockerId = c.req.param("blockerId");
+
+  await removeDependency(projectPath, ticketId, blockerId);
   const ticket = await getTicket(projectPath, ticketId);
 
   return c.json(ticket);

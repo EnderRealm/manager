@@ -1,6 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import type { Ticket } from "../hooks/useTickets.ts";
 import { TicketCard } from "./TicketCard.tsx";
+import { DependentCard } from "./DependentCard.tsx";
 import { colors, fonts, radius } from "../theme.ts";
 
 export type ColumnId = "in_progress" | "ready" | "blocked" | "closed";
@@ -13,6 +14,9 @@ interface KanbanColumnProps {
   onTicketClick?: (id: string) => void;
   isValidDrop?: boolean;
   isDragging?: boolean;
+  dependencyMap?: Map<string, Ticket[]>;
+  showDependents?: boolean;
+  getIsValidCardDrop?: (cardId: string) => boolean;
 }
 
 export function KanbanColumn({
@@ -23,6 +27,9 @@ export function KanbanColumn({
   onTicketClick,
   isValidDrop,
   isDragging,
+  dependencyMap,
+  showDependents = false,
+  getIsValidCardDrop,
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -88,13 +95,28 @@ export function KanbanColumn({
         </span>
       </div>
       <div>
-        {tickets.map((ticket) => (
-          <TicketCard
-            key={ticket.id}
-            ticket={ticket}
-            onClick={onTicketClick ? () => onTicketClick(ticket.id) : undefined}
-          />
-        ))}
+        {tickets.map((ticket) => {
+          const dependents = showDependents && dependencyMap ? dependencyMap.get(ticket.id) || [] : [];
+          const isValidCardTarget = isDragging && getIsValidCardDrop ? getIsValidCardDrop(ticket.id) : false;
+          return (
+            <div key={ticket.id}>
+              <TicketCard
+                ticket={ticket}
+                onClick={onTicketClick ? () => onTicketClick(ticket.id) : undefined}
+                isDropTarget={!!isDragging}
+                isValidDropTarget={isValidCardTarget}
+              />
+              {dependents.map((dep) => (
+                <DependentCard
+                  key={dep.id}
+                  ticket={dep}
+                  parentId={ticket.id}
+                  onClick={onTicketClick ? () => onTicketClick(dep.id) : undefined}
+                />
+              ))}
+            </div>
+          );
+        })}
         {tickets.length === 0 && (
           <div
             style={{

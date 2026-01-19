@@ -41,6 +41,7 @@ import {
 } from "../hooks/useTickets.ts";
 import { KanbanColumn, type ColumnId } from "./KanbanColumn.tsx";
 import { TicketCard } from "./TicketCard.tsx";
+import { DependentCard } from "./DependentCard.tsx";
 import { SlideOutPanel } from "./SlideOutPanel.tsx";
 import { TicketDetailContent } from "./TicketDetail.tsx";
 import { TicketFormContent } from "./TicketForm.tsx";
@@ -105,10 +106,11 @@ export function KanbanBoard() {
   const { data: readyTickets } = useReadyTickets(projectId!);
   const { data: blockedTickets } = useBlockedTickets(projectId!);
   const { data: closedTickets } = useClosedTickets(projectId!);
-  const { start, close, reopen } = useTicketMutations(projectId!);
+  const { start, close, reopen, addDep, removeDep } = useTicketMutations(projectId!);
 
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
   const [overColumn, setOverColumn] = useState<ColumnId | null>(null);
+  const [overCardId, setOverCardId] = useState<string | null>(null);
   const [droppedTicketId, setDroppedTicketId] = useState<string | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
@@ -134,6 +136,66 @@ export function KanbanBoard() {
   const filteredBlockedTickets = filterHidden(blockedTickets ?? []);
   const filteredClosedTickets = filterHidden(closedTickets ?? []);
 
+  // Build dependency map: blockerId -> [tickets that depend on it]
+  // A ticket's deps array contains IDs of tickets that block it
+  const dependencyMap = new Map<string, Ticket[]>();
+  const allTicketsList = allTickets ?? [];
+
+  for (const ticket of allTicketsList) {
+    for (const blockerId of ticket.deps) {
+      const existing = dependencyMap.get(blockerId) || [];
+      existing.push(ticket);
+      dependencyMap.set(blockerId, existing);
+    }
+  }
+
+  // Get IDs of all tickets that are dependents (they'll be shown under their blockers)
+  const dependentIds = new Set<string>();
+  for (const deps of dependencyMap.values()) {
+    for (const dep of deps) {
+      dependentIds.add(dep.id);
+    }
+  }
+
+  // Filter dependents out of top-level lists (except Blocked column which stays flat)
+  const filterDependents = (tickets: Ticket[]) =>
+    tickets.filter((t) => !dependentIds.has(t.id));
+
+  const topLevelInProgress = filterDependents(inProgressTickets);
+  const topLevelReady = filterDependents(readyOpenTickets);
+  const topLevelClosed = filterDependents(filteredClosedTickets);
+
+  // Check if adding a dependency would create a cycle
+  // Returns true if adding childId -> blockerId would create a cycle
+  const wouldCreateCycle = (childId: string, blockerId: string): boolean => {
+    // If blocker already depends on child (directly or transitively), adding child -> blocker creates cycle
+    const visited = new Set<string>();
+    const toVisit = [blockerId];
+
+    while (toVisit.length > 0) {
+      const current = toVisit.pop()!;
+      if (current === childId) return true;
+      if (visited.has(current)) continue;
+      visited.add(current);
+
+      const ticket = allTicketsList.find((t) => t.id === current);
+      if (ticket) {
+        for (const dep of ticket.deps) {
+          toVisit.push(dep);
+        }
+      }
+    }
+    return false;
+  };
+
+  // Check if dropping childId onto blockerId is valid (no cycle, not same ticket, not already a dep)
+  const isValidCardDrop = (childId: string, blockerId: string): boolean => {
+    if (childId === blockerId) return false;
+    const child = allTicketsList.find((t) => t.id === childId);
+    if (child?.deps.includes(blockerId)) return false; // Already a dependency
+    return !wouldCreateCycle(childId, blockerId);
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -158,21 +220,72 @@ export function KanbanBoard() {
   };
 
   const handleDragOver = (event: DragOverEvent) => {
-    const overId = event.over?.id as ColumnId | undefined;
-    setOverColumn(overId ?? null);
+    const overData = event.over?.data.current;
+    const overId = event.over?.id as string | undefined;
+
+    // Check if hovering over a card (drop target)
+    if (overData?.isCard && overData?.ticket) {
+      setOverCardId(overData.ticket.id);
+      setOverColumn(null);
+    } else {
+      setOverCardId(null);
+      setOverColumn(overId as ColumnId ?? null);
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTicket(null);
     setOverColumn(null);
+    setOverCardId(null);
 
     if (!over) return;
 
     const ticket = active.data.current?.ticket as Ticket | undefined;
     if (!ticket) return;
 
+    const activeData = active.data.current;
+    const overData = over.data.current;
+    const isDependent = activeData?.isDependent as boolean | undefined;
+    const parentId = activeData?.parentId as string | undefined;
+
+    // Check if dropped on a card (add dependency)
+    if (overData?.isCard && overData?.ticket) {
+      const targetTicket = overData.ticket as Ticket;
+      if (isValidCardDrop(ticket.id, targetTicket.id)) {
+        // Hide ticket and add dependency
+        setDroppedTicketId(ticket.id);
+        setTimeout(() => setDroppedTicketId(null), 500);
+        addDep({ ticketId: ticket.id, blockerId: targetTicket.id });
+      }
+      return;
+    }
+
+    // Dropped on column
     const targetColumn = over.id as ColumnId;
+
+    // Can't drop on blocked column
+    if (targetColumn === "blocked") return;
+
+    // If dragging a dependent card to a column, remove dependency + change status
+    if (isDependent && parentId) {
+      // Remove dependency first, then change status
+      setDroppedTicketId(ticket.id);
+      setTimeout(() => setDroppedTicketId(null), 500);
+
+      removeDep({ ticketId: ticket.id, blockerId: parentId });
+
+      // After removing dep, change status based on target column
+      if (targetColumn === "in_progress") {
+        setTimeout(() => start(ticket.id), 100);
+      } else if (targetColumn === "closed") {
+        setTimeout(() => close(ticket.id), 100);
+      }
+      // ready = open status, which is the default after removing dep
+      return;
+    }
+
+    // Regular ticket dropped on column - change status
     const sourceStatus = getSourceStatus(ticket);
 
     if (!isValidTransition(sourceStatus, targetColumn)) return;
@@ -202,12 +315,19 @@ export function KanbanBoard() {
   const handleDragCancel = () => {
     setActiveTicket(null);
     setOverColumn(null);
+    setOverCardId(null);
   };
 
   // Compute valid drop targets for the currently dragged ticket
   const getIsValidDrop = (columnId: ColumnId): boolean => {
     if (!activeTicket) return false;
     return isValidTransition(getSourceStatus(activeTicket), columnId, true);
+  };
+
+  // Check if a specific card is a valid drop target
+  const getIsValidCardDrop = (cardId: string): boolean => {
+    if (!activeTicket) return false;
+    return isValidCardDrop(activeTicket.id, cardId);
   };
 
   // Handle swipe on mobile - direction: -1 for left, 1 for right
@@ -246,20 +366,25 @@ export function KanbanBoard() {
     }
   };
 
-  // Get tickets for the active tab
+  // Get tickets for the active tab (top-level only, except Blocked which is flat)
   const getTicketsForTab = (tab: ColumnId): Ticket[] => {
     switch (tab) {
       case "in_progress":
-        return inProgressTickets;
+        return topLevelInProgress;
       case "ready":
-        return readyOpenTickets;
+        return topLevelReady;
       case "blocked":
         return filteredBlockedTickets;
       case "closed":
-        return filteredClosedTickets;
+        return topLevelClosed;
       default:
         return [];
     }
+  };
+
+  // Check if tab should show dependents
+  const tabShowsDependents = (tab: ColumnId): boolean => {
+    return tab !== "blocked";
   };
 
   const tabLabels: Record<ColumnId, string> = {
@@ -349,24 +474,37 @@ export function KanbanBoard() {
               No tickets
             </div>
           ) : (
-            getTicketsForTab(activeTab).map((ticket) => (
-              <SwipeableTicketCard
-                key={ticket.id}
-                ticket={ticket}
-                onClick={() => handleTicketClick(ticket.id)}
-                onSwipe={(dir) => handleSwipe(ticket, dir)}
-                canSwipeLeft={
-                  activeTab !== "blocked" &&
-                  (activeTab === "ready" || activeTab === "closed")
-                }
-                canSwipeRight={
-                  activeTab !== "blocked" &&
-                  (activeTab === "in_progress" || activeTab === "ready")
-                }
-                leftLabel={activeTab === "ready" ? "In Progress" : activeTab === "closed" ? "Ready" : undefined}
-                rightLabel={activeTab === "in_progress" ? "Ready" : activeTab === "ready" ? "Closed" : undefined}
-              />
-            ))
+            getTicketsForTab(activeTab).map((ticket) => {
+              const dependents = tabShowsDependents(activeTab) ? dependencyMap.get(ticket.id) || [] : [];
+              return (
+                <div key={ticket.id}>
+                  <SwipeableTicketCard
+                    ticket={ticket}
+                    onClick={() => handleTicketClick(ticket.id)}
+                    onSwipe={(dir) => handleSwipe(ticket, dir)}
+                    canSwipeLeft={
+                      activeTab !== "blocked" &&
+                      (activeTab === "ready" || activeTab === "closed")
+                    }
+                    canSwipeRight={
+                      activeTab !== "blocked" &&
+                      (activeTab === "in_progress" || activeTab === "ready")
+                    }
+                    leftLabel={activeTab === "ready" ? "In Progress" : activeTab === "closed" ? "Ready" : undefined}
+                    rightLabel={activeTab === "in_progress" ? "Ready" : activeTab === "ready" ? "Closed" : undefined}
+                  />
+                  {dependents.map((dep) => (
+                    <DependentCard
+                      key={dep.id}
+                      ticket={dep}
+                      parentId={ticket.id}
+                      onClick={() => handleTicketClick(dep.id)}
+                      isDragDisabled
+                    />
+                  ))}
+                </div>
+              );
+            })
           )}
         </div>
 
@@ -442,20 +580,26 @@ export function KanbanBoard() {
           <KanbanColumn
             id="in_progress"
             title="In Progress"
-            tickets={inProgressTickets}
+            tickets={topLevelInProgress}
             color={colors.textSecondary}
             onTicketClick={handleTicketClick}
             isValidDrop={getIsValidDrop("in_progress")}
             isDragging={!!activeTicket}
+            dependencyMap={dependencyMap}
+            showDependents={true}
+            getIsValidCardDrop={getIsValidCardDrop}
           />
           <KanbanColumn
             id="ready"
             title="Ready"
-            tickets={readyOpenTickets}
+            tickets={topLevelReady}
             color={colors.textSecondary}
             onTicketClick={handleTicketClick}
             isValidDrop={getIsValidDrop("ready")}
             isDragging={!!activeTicket}
+            dependencyMap={dependencyMap}
+            showDependents={true}
+            getIsValidCardDrop={getIsValidCardDrop}
           />
           <KanbanColumn
             id="blocked"
@@ -465,15 +609,19 @@ export function KanbanBoard() {
             onTicketClick={handleTicketClick}
             isValidDrop={getIsValidDrop("blocked")}
             isDragging={!!activeTicket}
+            getIsValidCardDrop={getIsValidCardDrop}
           />
           <KanbanColumn
             id="closed"
             title="Closed"
-            tickets={filteredClosedTickets}
+            tickets={topLevelClosed}
             color={colors.textMuted}
             onTicketClick={handleTicketClick}
             isValidDrop={getIsValidDrop("closed")}
             isDragging={!!activeTicket}
+            dependencyMap={dependencyMap}
+            showDependents={true}
+            getIsValidCardDrop={getIsValidCardDrop}
           />
         </div>
 
