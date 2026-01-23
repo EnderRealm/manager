@@ -743,7 +743,7 @@ export function KanbanBoard() {
 
   // Desktop view with columns
   return (
-    <div style={{ padding: 24, overflowX: "hidden" }}>
+    <div style={{ padding: 24, overflowX: "hidden", height: "100%", display: "flex", flexDirection: "column" }}>
       <div
         style={{
           display: "flex",
@@ -822,6 +822,8 @@ export function KanbanBoard() {
             display: "flex",
             gap: "16px",
             overflowX: "auto",
+            flex: 1,
+            minHeight: 0,
           }}
         >
           <KanbanColumn

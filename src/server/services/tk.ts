@@ -96,7 +96,7 @@ export async function getTickets(projectPath: string): Promise<Ticket[]> {
       const raw = JSON.parse(line);
       tickets.push({
         ...raw,
-        priority: parseInt(raw.priority, 10) || 2,
+        priority: raw.priority !== undefined ? Number(raw.priority) : 2,
         title: titleMap.get(raw.id),
       });
     }
@@ -292,7 +292,7 @@ export async function getTicket(
       links: parseArrayField(frontmatter.links),
       created: frontmatter.created || "",
       type: frontmatter.type || "task",
-      priority: priority ? parseInt(priority, 10) : 2,
+      priority: priority !== undefined ? Number(priority) : 2,
       assignee: frontmatter.assignee,
       parent: parent?.split("#")[0]?.trim(),
       title,

@@ -51,6 +51,7 @@ export function KanbanColumn({
       style={{
         flex: 1,
         minWidth: "280px",
+        minHeight: 0,
         borderRadius: radius.lg,
         padding: "12px",
         border: `2px solid ${borderColor}`,
@@ -60,6 +61,8 @@ export function KanbanColumn({
           : showInvalidHighlight
             ? `${colors.danger}08`
             : colors.canvas,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <div
@@ -94,7 +97,7 @@ export function KanbanColumn({
           {tickets.length}
         </span>
       </div>
-      <div>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {tickets.map((ticket) => {
           const dependents = showDependents && dependencyMap ? dependencyMap.get(ticket.id) || [] : [];
           const isValidCardTarget = isDragging && getIsValidCardDrop ? getIsValidCardDrop(ticket.id) : false;
