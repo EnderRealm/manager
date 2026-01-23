@@ -29,6 +29,19 @@ export interface LanguageInfo {
   breakdown: LanguageBreakdown[];
 }
 
+export type ServiceAggregateStatus =
+  | "healthy"
+  | "degraded"
+  | "crashed"
+  | "none"
+  | "unknown";
+
+export interface ServiceDetail {
+  id: string;
+  name: string;
+  status: string;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -37,6 +50,8 @@ export interface ProjectSummary {
   languages: LanguageInfo;
   hasTk: boolean;
   ticketCounts: TicketCounts;
+  serviceStatus: ServiceAggregateStatus;
+  serviceDetails?: ServiceDetail[];
 }
 
 async function fetchProjects(): Promise<ProjectSummary[]> {
@@ -51,5 +66,6 @@ export function useProjects() {
   return useQuery({
     queryKey: ["projects"],
     queryFn: fetchProjects,
+    refetchOnWindowFocus: true,
   });
 }

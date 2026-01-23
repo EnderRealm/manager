@@ -8,6 +8,10 @@ import {
   getBlockedTickets,
   hasTk,
 } from "../services/tk.ts";
+import {
+  isTmuxAvailable,
+  getAllServices,
+} from "../services/process-manager.ts";
 
 export interface TicketCounts {
   inProgress: number;
@@ -31,6 +35,13 @@ export interface LanguageInfo {
   breakdown: { language: string; percentage: number; color: string }[];
 }
 
+export type ServiceAggregateStatus =
+  | "healthy"    // all services running
+  | "degraded"   // some services stopped or unhealthy
+  | "crashed"    // any service in crashed state
+  | "none"       // no services configured
+  | "unknown";   // tmux not available
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -39,6 +50,8 @@ export interface ProjectSummary {
   languages: LanguageInfo;
   hasTk: boolean;
   ticketCounts: TicketCounts;
+  serviceStatus: ServiceAggregateStatus;
+  serviceDetails?: { id: string; name: string; status: string }[];
 }
 
 // Remap commonly misidentified languages
@@ -126,6 +139,39 @@ async function getProjectSummary(
     .sort((a, b) => b.percentage - a.percentage)
     .slice(0, 5);
 
+  // Compute service status
+  const services = getAllServices(name);
+  let serviceStatus: ServiceAggregateStatus;
+  let serviceDetails: { id: string; name: string; status: string }[] | undefined;
+
+  if (services.length === 0) {
+    serviceStatus = "none";
+  } else if (!isTmuxAvailable()) {
+    serviceStatus = "unknown";
+  } else {
+    const hasCrashed = services.some((s) => s.state.status === "crashed");
+    const hasUnhealthy = services.some((s) => s.state.status === "unhealthy");
+    const allRunning = services.every((s) => s.state.status === "running");
+    const allStopped = services.every((s) => s.state.status === "stopped");
+
+    if (hasCrashed) {
+      serviceStatus = "crashed";
+    } else if (hasUnhealthy || (!allRunning && !allStopped)) {
+      serviceStatus = "degraded";
+    } else if (allRunning) {
+      serviceStatus = "healthy";
+    } else {
+      // All stopped - show as none (gray)
+      serviceStatus = "none";
+    }
+
+    serviceDetails = services.map((s) => ({
+      id: s.config.id,
+      name: s.config.name,
+      status: s.state.status,
+    }));
+  }
+
   return {
     id: name,
     name,
@@ -144,6 +190,8 @@ async function getProjectSummary(
     },
     hasTk: hasTk(path),
     ticketCounts,
+    serviceStatus,
+    serviceDetails,
   };
 }
 

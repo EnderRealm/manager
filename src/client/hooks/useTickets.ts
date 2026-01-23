@@ -38,6 +38,7 @@ export function useAllTickets(projectId: string) {
   return useQuery({
     queryKey: ["tickets", projectId, "all"],
     queryFn: () => fetchTickets(projectId, "all"),
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -45,6 +46,7 @@ export function useReadyTickets(projectId: string) {
   return useQuery({
     queryKey: ["tickets", projectId, "ready"],
     queryFn: () => fetchTickets(projectId, "ready"),
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -52,6 +54,7 @@ export function useBlockedTickets(projectId: string) {
   return useQuery({
     queryKey: ["tickets", projectId, "blocked"],
     queryFn: () => fetchTickets(projectId, "blocked"),
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -59,6 +62,7 @@ export function useClosedTickets(projectId: string) {
   return useQuery({
     queryKey: ["tickets", projectId, "closed"],
     queryFn: () => fetchTickets(projectId, "closed"),
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -77,6 +81,7 @@ export function useTicket(projectId: string, ticketId: string) {
   return useQuery({
     queryKey: ["ticket", projectId, ticketId],
     queryFn: () => fetchTicket(projectId, ticketId),
+    refetchOnWindowFocus: true,
   });
 }
 

@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
-import { NavLink, Outlet, useParams, useLocation } from "react-router-dom";
-import { colors, fonts } from "../theme.ts";
-import { useProjects } from "../hooks/useProjects.ts";
+import { useState, useEffect, useRef } from "react";
+import { NavLink, Outlet, useParams, useLocation, useNavigate } from "react-router-dom";
+import { colors, fonts, radius } from "../theme.ts";
+import { useProjects, type ProjectSummary } from "../hooks/useProjects.ts";
+import { useTicketEvents } from "../hooks/useTicketEvents.ts";
 
 const sidebarWidth = 240;
 const headerHeight = 48;
@@ -23,6 +24,144 @@ function useIsMobile() {
   return isMobile;
 }
 
+function ProjectSwitcher({
+  currentProject,
+  projects,
+}: {
+  currentProject: ProjectSummary;
+  projects: ProjectSummary[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectProject = (projectId: string) => {
+    setIsOpen(false);
+    navigate(`/projects/${projectId}`);
+  };
+
+  // Sort projects: current first, then alphabetically
+  const sortedProjects = [...projects].sort((a, b) => {
+    if (a.id === currentProject.id) return -1;
+    if (b.id === currentProject.id) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return (
+    <div ref={dropdownRef} style={{ position: "relative" }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          background: "none",
+          border: "none",
+          padding: "4px 8px",
+          margin: "-4px -8px",
+          borderRadius: radius.sm,
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          color: colors.textSecondary,
+          fontSize: 14,
+          transition: "background-color 0.15s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = colors.overlay;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+        }}
+      >
+        {currentProject.name}
+        <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: -8,
+            marginTop: 8,
+            backgroundColor: colors.surfaceRaised,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.md,
+            padding: 4,
+            zIndex: 200,
+            minWidth: 200,
+            maxHeight: 300,
+            overflowY: "auto",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        >
+          {sortedProjects.map((project) => (
+            <button
+              key={project.id}
+              onClick={() => handleSelectProject(project.id)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                padding: "8px 10px",
+                border: "none",
+                borderRadius: radius.sm,
+                cursor: "pointer",
+                backgroundColor:
+                  project.id === currentProject.id ? colors.overlay : "transparent",
+                color: colors.textPrimary,
+                fontSize: 13,
+                textAlign: "left",
+              }}
+              onMouseEnter={(e) => {
+                if (project.id !== currentProject.id) {
+                  e.currentTarget.style.backgroundColor = colors.overlay;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (project.id !== currentProject.id) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }
+              }}
+            >
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {project.name}
+              </span>
+              {project.hasTk && project.ticketCounts.inProgress + project.ticketCounts.ready > 0 && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: colors.textMuted,
+                    backgroundColor: colors.canvas,
+                    padding: "2px 6px",
+                    borderRadius: radius.sm,
+                  }}
+                >
+                  {project.ticketCounts.inProgress + project.ticketCounts.ready}
+                </span>
+              )}
+              {project.id === currentProject.id && (
+                <span style={{ color: colors.success, fontSize: 12 }}>✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Layout() {
   const { id: projectId, ticketId } = useParams();
   const { data: projects } = useProjects();
@@ -30,6 +169,9 @@ export function Layout() {
   const isMobile = useIsMobile();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+
+  // Subscribe to SSE ticket events for current project
+  useTicketEvents(projectId);
 
   // Close menu on navigation
   useEffect(() => {
@@ -84,19 +226,10 @@ export function Layout() {
           </span>
         </div>
 
-        {currentProject && (
+        {currentProject && projects && (
           <>
             <span style={{ color: colors.textMuted }}>/</span>
-            <NavLink
-              to={`/projects/${projectId}`}
-              style={{
-                color: colors.textSecondary,
-                fontSize: 14,
-                textDecoration: "none",
-              }}
-            >
-              {currentProject.name}
-            </NavLink>
+            <ProjectSwitcher currentProject={currentProject} projects={projects} />
           </>
         )}
 

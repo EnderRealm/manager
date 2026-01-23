@@ -45,7 +45,146 @@ import { DependentCard } from "./DependentCard.tsx";
 import { SlideOutPanel } from "./SlideOutPanel.tsx";
 import { TicketDetailContent } from "./TicketDetail.tsx";
 import { TicketFormContent } from "./TicketForm.tsx";
-import { colors, fonts, buttonPrimary, radius } from "../theme.ts";
+import { colors, fonts, buttonPrimary, buttonSecondary, radius, inputBase } from "../theme.ts";
+
+// Filter types
+interface Filters {
+  types: string[];
+  priorities: number[];
+  assignees: string[];
+}
+
+const TICKET_TYPES = ["bug", "feature", "task", "epic", "chore"] as const;
+const PRIORITIES = [0, 1, 2, 3, 4] as const;
+
+function FilterDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+  renderOption,
+}: {
+  label: string;
+  options: (string | number)[];
+  selected: (string | number)[];
+  onChange: (selected: (string | number)[]) => void;
+  renderOption?: (opt: string | number) => string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleOption = (opt: string | number) => {
+    if (selected.includes(opt)) {
+      onChange(selected.filter((s) => s !== opt));
+    } else {
+      onChange([...selected, opt]);
+    }
+  };
+
+  const firstSelected = selected[0];
+  const displayText = selected.length === 0
+    ? label
+    : selected.length === 1 && firstSelected !== undefined
+      ? renderOption ? renderOption(firstSelected) : String(firstSelected)
+      : `${selected.length} selected`;
+
+  return (
+    <div ref={dropdownRef} style={{ position: "relative" }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          ...buttonSecondary,
+          padding: "6px 12px",
+          fontSize: 13,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          minWidth: 80,
+          backgroundColor: selected.length > 0 ? colors.overlay : "transparent",
+        }}
+      >
+        {displayText}
+        <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
+      </button>
+      {isOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            marginTop: 4,
+            backgroundColor: colors.surfaceRaised,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.md,
+            padding: 4,
+            zIndex: 100,
+            minWidth: 140,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          }}
+        >
+          {options.map((opt) => (
+            <label
+              key={String(opt)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 8px",
+                cursor: "pointer",
+                borderRadius: radius.sm,
+                fontSize: 13,
+                color: colors.textPrimary,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.overlay;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(opt)}
+                onChange={() => toggleOption(opt)}
+                style={{ accentColor: colors.accent }}
+              />
+              {renderOption ? renderOption(opt) : String(opt)}
+            </label>
+          ))}
+          {selected.length > 0 && (
+            <button
+              onClick={() => onChange([])}
+              style={{
+                width: "100%",
+                padding: "6px 8px",
+                marginTop: 4,
+                border: "none",
+                borderTop: `1px solid ${colors.border}`,
+                backgroundColor: "transparent",
+                color: colors.textSecondary,
+                fontSize: 12,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const mobileBreakpoint = 768;
 
@@ -115,26 +254,49 @@ export function KanbanBoard() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [activeTab, setActiveTab] = useState<ColumnId>("in_progress");
+  const [filters, setFilters] = useState<Filters>({ types: [], priorities: [], assignees: [] });
   const boardRef = useRef<HTMLDivElement>(null);
   const restrictToBoard = createRestrictToContainer(boardRef);
 
+  // Derive available assignees from ticket data
+  const availableAssignees = [...new Set(
+    (allTickets ?? [])
+      .map((t) => t.assignee)
+      .filter((a): a is string => !!a)
+  )].sort();
+
+  // Apply filters to a ticket list
+  const applyFilters = (tickets: Ticket[]): Ticket[] => {
+    return tickets.filter((t) => {
+      if (filters.types.length > 0 && !filters.types.includes(t.type)) return false;
+      if (filters.priorities.length > 0 && !filters.priorities.includes(t.priority)) return false;
+      if (filters.assignees.length > 0) {
+        if (!t.assignee || !filters.assignees.includes(t.assignee)) return false;
+      }
+      return true;
+    });
+  };
+
+  const hasActiveFilters = filters.types.length > 0 || filters.priorities.length > 0 || filters.assignees.length > 0;
+
+  const clearAllFilters = () => setFilters({ types: [], priorities: [], assignees: [] });
 
   // Filter out tickets that were just dropped (waiting for refetch)
   // Don't filter activeTicket - it needs to stay in DOM for useDraggable to work
   const filterHidden = (tickets: Ticket[]) =>
     tickets.filter((t) => t.id !== droppedTicketId);
 
-  const inProgressTickets = filterHidden(
+  const inProgressTickets = applyFilters(filterHidden(
     allTickets?.filter((t) => t.status === "in_progress") ?? []
-  );
+  ));
 
   // Filter ready to only show open tickets (exclude in_progress which appear in their own column)
-  const readyOpenTickets = filterHidden(
+  const readyOpenTickets = applyFilters(filterHidden(
     readyTickets?.filter((t) => t.status === "open") ?? []
-  );
+  ));
 
-  const filteredBlockedTickets = filterHidden(blockedTickets ?? []);
-  const filteredClosedTickets = filterHidden(closedTickets ?? []);
+  const filteredBlockedTickets = applyFilters(filterHidden(blockedTickets ?? []));
+  const filteredClosedTickets = applyFilters(filterHidden(closedTickets ?? []));
 
   // Build dependency map: blockerId -> [tickets that depend on it]
   // A ticket's deps array contains IDs of tickets that block it
@@ -405,7 +567,7 @@ export function KanbanBoard() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 16,
+            marginBottom: 12,
             minHeight: 32,
           }}
         >
@@ -426,6 +588,53 @@ export function KanbanBoard() {
           >
             + New
           </button>
+        </div>
+
+        {/* Filters */}
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginBottom: 12,
+            overflowX: "auto",
+            paddingBottom: 4,
+          }}
+        >
+          <FilterDropdown
+            label="Type"
+            options={[...TICKET_TYPES]}
+            selected={filters.types}
+            onChange={(selected) => setFilters((f) => ({ ...f, types: selected as string[] }))}
+          />
+          <FilterDropdown
+            label="Priority"
+            options={[...PRIORITIES]}
+            selected={filters.priorities}
+            onChange={(selected) => setFilters((f) => ({ ...f, priorities: selected as number[] }))}
+            renderOption={(p) => `P${p}`}
+          />
+          {availableAssignees.length > 0 && (
+            <FilterDropdown
+              label="Assignee"
+              options={availableAssignees}
+              selected={filters.assignees}
+              onChange={(selected) => setFilters((f) => ({ ...f, assignees: selected as string[] }))}
+            />
+          )}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              style={{
+                ...buttonSecondary,
+                padding: "6px 10px",
+                fontSize: 12,
+                color: colors.textSecondary,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         {/* Tabs */}
@@ -541,6 +750,8 @@ export function KanbanBoard() {
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: 24,
+          flexWrap: "wrap",
+          gap: 16,
         }}
       >
         <h1
@@ -553,12 +764,48 @@ export function KanbanBoard() {
         >
           Board
         </h1>
-        <button
-          onClick={() => setShowNewTicketForm(true)}
-          style={buttonPrimary}
-        >
-          + New Ticket
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <FilterDropdown
+            label="Type"
+            options={[...TICKET_TYPES]}
+            selected={filters.types}
+            onChange={(selected) => setFilters((f) => ({ ...f, types: selected as string[] }))}
+          />
+          <FilterDropdown
+            label="Priority"
+            options={[...PRIORITIES]}
+            selected={filters.priorities}
+            onChange={(selected) => setFilters((f) => ({ ...f, priorities: selected as number[] }))}
+            renderOption={(p) => `P${p}`}
+          />
+          {availableAssignees.length > 0 && (
+            <FilterDropdown
+              label="Assignee"
+              options={availableAssignees}
+              selected={filters.assignees}
+              onChange={(selected) => setFilters((f) => ({ ...f, assignees: selected as string[] }))}
+            />
+          )}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              style={{
+                ...buttonSecondary,
+                padding: "6px 12px",
+                fontSize: 13,
+                color: colors.textSecondary,
+              }}
+            >
+              Clear filters
+            </button>
+          )}
+          <button
+            onClick={() => setShowNewTicketForm(true)}
+            style={buttonPrimary}
+          >
+            + New Ticket
+          </button>
+        </div>
       </div>
 
       <DndContext

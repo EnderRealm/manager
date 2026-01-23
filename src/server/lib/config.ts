@@ -2,9 +2,24 @@ import fs from "node:fs";
 import path from "node:path";
 import { logger } from "./logger.ts";
 
+export interface ServiceConfig {
+  id: string;
+  name: string;
+  cmd: string;
+  cwd?: string;
+  port?: number;
+  healthUrl?: string;
+  autoStart?: boolean;
+  autoRestart?: boolean;
+  restartDelay?: number;
+  maxRestarts?: number;
+  env?: Record<string, string>;
+}
+
 export interface ProjectConfig {
   name: string;
   path: string;
+  services?: ServiceConfig[];
 }
 
 export interface Config {
@@ -13,6 +28,56 @@ export interface Config {
 
 const configPath =
   process.env.CONFIG_PATH || path.join(process.cwd(), "config.json");
+
+function validateAndNormalizeServices(
+  projectName: string,
+  services?: ServiceConfig[]
+): ServiceConfig[] {
+  if (!services || services.length === 0) {
+    return [];
+  }
+
+  const seenIds = new Set<string>();
+  const normalized: ServiceConfig[] = [];
+
+  for (const service of services) {
+    if (!service.id || typeof service.id !== "string") {
+      logger.warn({ projectName, service }, "Service missing id, skipping");
+      continue;
+    }
+    if (seenIds.has(service.id)) {
+      logger.warn(
+        { projectName, serviceId: service.id },
+        "Duplicate service id, skipping"
+      );
+      continue;
+    }
+    if (!service.cmd || typeof service.cmd !== "string") {
+      logger.warn(
+        { projectName, serviceId: service.id },
+        "Service missing cmd, skipping"
+      );
+      continue;
+    }
+
+    seenIds.add(service.id);
+    normalized.push({
+      id: service.id,
+      name: service.name || service.id,
+      cmd: service.cmd,
+      cwd: service.cwd || ".",
+      port: service.port,
+      healthUrl: service.healthUrl,
+      autoStart: service.autoStart ?? false,
+      autoRestart: service.autoRestart ?? false,
+      restartDelay: service.restartDelay ?? 3000,
+      maxRestarts: service.maxRestarts ?? 5,
+      env: service.env,
+    });
+  }
+
+  return normalized;
+}
 
 export function loadConfig(): Config {
   if (!fs.existsSync(configPath)) {
@@ -30,6 +95,10 @@ export function loadConfig(): Config {
         "Project path does not exist"
       );
     }
+    project.services = validateAndNormalizeServices(
+      project.name,
+      project.services
+    );
   }
 
   return config;

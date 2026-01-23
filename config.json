@@ -2,11 +2,52 @@
   "projects": [
     {
       "name": "manager",
-      "path": "/Users/smacbeth/code/manager"
+      "path": "/Users/smacbeth/code/manager",
+      "services": [
+        {
+          "id": "server",
+          "name": "API Server",
+          "cmd": "bun src/server/index.ts",
+          "port": 3000,
+          "healthUrl": "http://localhost:3000/api/health",
+          "autoStart": false
+        },
+        {
+          "id": "vite",
+          "name": "Vite Dev",
+          "cmd": "npx vite --port 5173",
+          "port": 5173,
+          "autoStart": false
+        }
+      ]
     },
     {
       "name": "Ghostwheel",
       "path": "/Users/smacbeth/code/ghostwheel"
+    },
+    {
+      "name": "Eve Monitor",
+      "path": "/Users/smacbeth/code/eve-monitor"
+    },
+    {
+      "name": "SF - Take1",
+      "path": "/Users/smacbeth/code/take1"
+    },
+    {
+      "name": "Agentics",
+      "path": "/Users/smacbeth/code/agentics"
+    },
+    {
+      "name": "SF - Von Neumann",
+      "path": "/Users/smacbeth/code/von-neumann"
+    },
+    {
+      "name": "Ticket",
+      "path": "/Users/smacbeth/code/ticket"
+    },
+    {
+      "name": "Substiswap",
+      "path": "/Users/smacbeth/code/substiswap"
     }
   ]
 }

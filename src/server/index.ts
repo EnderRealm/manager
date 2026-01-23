@@ -4,6 +4,9 @@ import { loadConfig } from "./lib/config.ts";
 import { tickets } from "./routes/tickets.ts";
 import { projects } from "./routes/projects.ts";
 import { config as configRoutes } from "./routes/config.ts";
+import { events } from "./routes/events.ts";
+import { services } from "./routes/services.ts";
+import { initialize as initProcessManager } from "./services/process-manager.ts";
 
 const app = new Hono();
 
@@ -37,6 +40,13 @@ app.get("/api/health", (c) => {
 app.route("/api", tickets);
 app.route("/api", projects);
 app.route("/api", configRoutes);
+app.route("/api", events);
+app.route("/api", services);
+
+// Initialize process manager (adopts orphan sessions, starts auto-start services)
+initProcessManager().catch((err) => {
+  logger.error({ err }, "Failed to initialize process manager");
+});
 
 const port = 3000;
 logger.info({ port }, "Server starting");

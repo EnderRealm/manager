@@ -1,7 +1,7 @@
 ---
 id: m-ef39
-status: closed
-deps: []
+status: in_progress
+deps: [m-2a73]
 links: []
 created: 2026-01-18T23:05:08Z
 type: feature
