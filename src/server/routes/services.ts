@@ -35,6 +35,7 @@ services.get("/projects/:id/services", (c) => {
       id: s.config.id,
       name: s.config.name,
       cmd: s.config.cmd,
+      type: s.config.type || "service",
       port: s.config.port,
       healthUrl: s.config.healthUrl,
       autoStart: s.config.autoStart,

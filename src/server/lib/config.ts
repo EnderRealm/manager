@@ -2,10 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { logger } from "./logger.ts";
 
+export type ServiceType = "service" | "agent";
+
 export interface ServiceConfig {
   id: string;
   name: string;
   cmd: string;
+  type?: ServiceType;
   cwd?: string;
   port?: number;
   healthUrl?: string;
@@ -39,6 +42,7 @@ function validateAndNormalizeServices(
 
   const seenIds = new Set<string>();
   const normalized: ServiceConfig[] = [];
+  let hasAgent = false;
 
   for (const service of services) {
     if (!service.id || typeof service.id !== "string") {
@@ -60,11 +64,32 @@ function validateAndNormalizeServices(
       continue;
     }
 
+    const serviceType = service.type || "service";
+    if (serviceType !== "service" && serviceType !== "agent") {
+      logger.warn(
+        { projectName, serviceId: service.id, type: service.type },
+        "Invalid service type, defaulting to 'service'"
+      );
+    }
+
+    // Only one agent per project
+    if (serviceType === "agent") {
+      if (hasAgent) {
+        logger.warn(
+          { projectName, serviceId: service.id },
+          "Multiple agents configured, only one allowed per project, skipping"
+        );
+        continue;
+      }
+      hasAgent = true;
+    }
+
     seenIds.add(service.id);
     normalized.push({
       id: service.id,
       name: service.name || service.id,
       cmd: service.cmd,
+      type: serviceType === "agent" ? "agent" : "service",
       cwd: service.cwd || ".",
       port: service.port,
       healthUrl: service.healthUrl,
@@ -81,8 +106,10 @@ function validateAndNormalizeServices(
 
 export function loadConfig(): Config {
   if (!fs.existsSync(configPath)) {
-    logger.warn({ path: configPath }, "Config file not found, using defaults");
-    return { projects: [] };
+    logger.info({ path: configPath }, "Config file not found, creating empty config");
+    const emptyConfig: Config = { projects: [] };
+    fs.writeFileSync(configPath, JSON.stringify(emptyConfig, null, 2) + "\n");
+    return emptyConfig;
   }
 
   const raw = fs.readFileSync(configPath, "utf-8");

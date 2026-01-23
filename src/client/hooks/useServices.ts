@@ -8,10 +8,13 @@ export type ServiceStatus =
   | "crashed"
   | "restarting";
 
+export type ServiceType = "service" | "agent";
+
 export interface Service {
   id: string;
   name: string;
   cmd: string;
+  type: ServiceType;
   port?: number;
   healthUrl?: string;
   autoStart: boolean;

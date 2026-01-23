@@ -155,8 +155,19 @@ async function runHealthChecks(): Promise<void> {
     for (const service of project.services) {
       const state = getState(project.name, service.id);
 
-      // Skip if stopped or crashed (unless we need to check for orphan revival)
-      if (state.status === "stopped") continue;
+      // Check if a "stopped" service has an orphan session we should adopt
+      if (state.status === "stopped") {
+        const sessionAlive = await sessionExists(project.name, service.id);
+        if (sessionAlive) {
+          logger.info({ projectId: project.name, serviceId: service.id }, "Adopting late orphan session");
+          setState(project.name, service.id, {
+            status: "running",
+            restartCount: 0,
+            restartWindowStart: Date.now(),
+          });
+        }
+        continue;
+      }
 
       const sessionAlive = await sessionExists(project.name, service.id);
       const now = Date.now();
