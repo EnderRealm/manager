@@ -1,6 +1,6 @@
 ---
 id: m-b4af
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-01-23T09:20:13Z
