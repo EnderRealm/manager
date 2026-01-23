@@ -160,3 +160,138 @@ export function removeProject(name: string): Config {
   saveConfig(config);
   return config;
 }
+
+export interface ServiceInput {
+  id: string;
+  name?: string;
+  cmd: string;
+  type?: ServiceType;
+  cwd?: string;
+  port?: number;
+  healthUrl?: string;
+  autoStart?: boolean;
+  autoRestart?: boolean;
+  restartDelay?: number;
+  maxRestarts?: number;
+  env?: Record<string, string>;
+}
+
+export function addService(projectName: string, service: ServiceInput): Config {
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === projectName);
+
+  if (!project) {
+    throw new Error(`Project "${projectName}" not found`);
+  }
+
+  if (!service.id || typeof service.id !== "string") {
+    throw new Error("Service id is required");
+  }
+
+  if (!service.cmd || typeof service.cmd !== "string") {
+    throw new Error("Service cmd is required");
+  }
+
+  const services = project.services || [];
+
+  if (services.some((s) => s.id === service.id)) {
+    throw new Error(`Service "${service.id}" already exists in project "${projectName}"`);
+  }
+
+  const serviceType = service.type || "service";
+  if (serviceType === "agent" && services.some((s) => s.type === "agent")) {
+    throw new Error(`Project "${projectName}" already has an agent service`);
+  }
+
+  const normalized: ServiceConfig = {
+    id: service.id,
+    name: service.name || service.id,
+    cmd: service.cmd,
+    type: serviceType === "agent" ? "agent" : "service",
+    cwd: service.cwd || ".",
+    port: service.port,
+    healthUrl: service.healthUrl,
+    autoStart: service.autoStart ?? false,
+    autoRestart: service.autoRestart ?? false,
+    restartDelay: service.restartDelay ?? 3000,
+    maxRestarts: service.maxRestarts ?? 5,
+    env: service.env,
+  };
+
+  services.push(normalized);
+  project.services = services;
+  saveConfig(config);
+  logger.info({ projectName, serviceId: service.id }, "Service added");
+  return config;
+}
+
+export function updateService(
+  projectName: string,
+  serviceId: string,
+  updates: Partial<Omit<ServiceInput, "id">>
+): Config {
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === projectName);
+
+  if (!project) {
+    throw new Error(`Project "${projectName}" not found`);
+  }
+
+  const services = project.services || [];
+  const index = services.findIndex((s) => s.id === serviceId);
+
+  if (index === -1) {
+    throw new Error(`Service "${serviceId}" not found in project "${projectName}"`);
+  }
+
+  const existing = services[index]!;
+
+  if (updates.type === "agent" && existing.type !== "agent") {
+    if (services.some((s) => s.type === "agent")) {
+      throw new Error(`Project "${projectName}" already has an agent service`);
+    }
+  }
+
+  const updated: ServiceConfig = {
+    id: existing.id,
+    name: updates.name ?? existing.name,
+    cmd: updates.cmd ?? existing.cmd,
+    type: updates.type ?? existing.type,
+    cwd: updates.cwd ?? existing.cwd,
+    port: updates.port !== undefined ? updates.port : existing.port,
+    healthUrl: updates.healthUrl !== undefined ? updates.healthUrl : existing.healthUrl,
+    autoStart: updates.autoStart ?? existing.autoStart,
+    autoRestart: updates.autoRestart ?? existing.autoRestart,
+    restartDelay: updates.restartDelay ?? existing.restartDelay,
+    maxRestarts: updates.maxRestarts ?? existing.maxRestarts,
+    env: updates.env !== undefined ? updates.env : existing.env,
+  };
+  services[index] = updated;
+
+  project.services = services;
+  saveConfig(config);
+  logger.info({ projectName, serviceId }, "Service updated");
+  return config;
+}
+
+export function removeService(projectName: string, serviceId: string): Config {
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === projectName);
+
+  if (!project) {
+    throw new Error(`Project "${projectName}" not found`);
+  }
+
+  const services = project.services || [];
+  const index = services.findIndex((s) => s.id === serviceId);
+
+  if (index === -1) {
+    throw new Error(`Service "${serviceId}" not found in project "${projectName}"`);
+  }
+
+  services.splice(index, 1);
+  project.services = services;
+  saveConfig(config);
+  logger.info({ projectName, serviceId }, "Service removed");
+  return config;
+}

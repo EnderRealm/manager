@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useServices, type Service, type ServiceStatus } from "../hooks/useServices.ts";
 import { colors, radius } from "../theme.ts";
+import { ServiceCreateModal } from "./ServiceCreateModal.tsx";
+import { ServiceEditModal } from "./ServiceEditModal.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 
 interface ServicesDropdownProps {
   projectId: string;
@@ -59,6 +62,11 @@ function getAggregateStatus(services: Service[]): {
 
 export function ServicesDropdown({ projectId, onViewLogs }: ServicesDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [deletingService, setDeletingService] = useState<Service | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const {
     tmuxAvailable,
@@ -67,9 +75,11 @@ export function ServicesDropdown({ projectId, onViewLogs }: ServicesDropdownProp
     start,
     stop,
     restart,
+    remove,
     isStarting,
     isStopping,
     isRestarting,
+    isDeleting,
   } = useServices(projectId);
 
   useEffect(() => {
@@ -82,16 +92,33 @@ export function ServicesDropdown({ projectId, onViewLogs }: ServicesDropdownProp
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleDelete = (service: Service) => {
+    setDeleteError(null);
+    setDeletingService(service);
+  };
+
+  const confirmDelete = () => {
+    if (!deletingService) return;
+
+    remove(deletingService.id, {
+      onSuccess: () => {
+        setDeletingService(null);
+        setDeleteError(null);
+      },
+      onError: (err) => {
+        setDeleteError(err instanceof Error ? err.message : "Failed to delete service");
+      },
+    });
+  };
+
   if (isLoading) {
     return null;
   }
 
-  if (services.length === 0) {
-    return null;
-  }
-
   const aggregate = getAggregateStatus(services);
-  const isBusy = isStarting || isStopping || isRestarting;
+  const isBusy = isStarting || isStopping || isRestarting || isDeleting;
+  const isServiceRunning = (service: Service) =>
+    service.status === "running" || service.status === "starting" || service.status === "restarting";
 
   return (
     <div ref={dropdownRef} style={{ position: "relative" }}>
@@ -156,20 +183,96 @@ export function ServicesDropdown({ projectId, onViewLogs }: ServicesDropdownProp
               </span>
             </div>
           ) : (
-            services.map((service) => (
-              <ServiceRow
-                key={service.id}
-                service={service}
-                isBusy={isBusy}
-                onStart={() => start(service.id)}
-                onStop={() => stop(service.id)}
-                onRestart={() => restart(service.id)}
-                onViewLogs={() => onViewLogs?.(service.id)}
-              />
-            ))
+            <>
+              {services.map((service) => (
+                <ServiceRow
+                  key={service.id}
+                  service={service}
+                  isBusy={isBusy}
+                  onStart={() => start(service.id)}
+                  onStop={() => stop(service.id)}
+                  onRestart={() => restart(service.id)}
+                  onViewLogs={() => onViewLogs?.(service.id)}
+                  onEdit={() => {
+                    setEditingService(service);
+                    setIsOpen(false);
+                  }}
+                  onDelete={() => handleDelete(service)}
+                  isRunning={isServiceRunning(service)}
+                />
+              ))}
+              {services.length === 0 && (
+                <div
+                  style={{
+                    padding: 12,
+                    color: colors.textMuted,
+                    textAlign: "center",
+                    fontSize: 13,
+                  }}
+                >
+                  No services configured
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setShowCreateModal(true);
+                  setIsOpen(false);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  width: "100%",
+                  padding: "10px 12px",
+                  marginTop: 8,
+                  backgroundColor: "transparent",
+                  border: `1px dashed ${colors.border}`,
+                  borderRadius: radius.sm,
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                + Add Service
+              </button>
+            </>
           )}
         </div>
       )}
+
+      <ServiceCreateModal
+        projectId={projectId}
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
+
+      <ServiceEditModal
+        projectId={projectId}
+        service={editingService}
+        open={editingService !== null}
+        onClose={() => setEditingService(null)}
+      />
+
+      <ConfirmDialog
+        open={deletingService !== null}
+        title="Delete Service"
+        message={
+          deletingService
+            ? isServiceRunning(deletingService)
+              ? `"${deletingService.name}" is currently running. Stop it first before deleting.`
+              : `Are you sure you want to delete "${deletingService.name}"? This cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setDeletingService(null);
+          setDeleteError(null);
+        }}
+      />
     </div>
   );
 }
@@ -177,21 +280,27 @@ export function ServicesDropdown({ projectId, onViewLogs }: ServicesDropdownProp
 interface ServiceRowProps {
   service: Service;
   isBusy: boolean;
+  isRunning: boolean;
   onStart: () => void;
   onStop: () => void;
   onRestart: () => void;
   onViewLogs: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
 function ServiceRow({
   service,
   isBusy,
+  isRunning,
   onStart,
   onStop,
   onRestart,
   onViewLogs,
+  onEdit,
+  onDelete,
 }: ServiceRowProps) {
-  const isRunning = service.status === "running";
+  const statusRunning = service.status === "running";
   const isStopped = service.status === "stopped" || service.status === "crashed";
   const isTransitioning =
     service.status === "starting" || service.status === "restarting";
@@ -245,7 +354,7 @@ function ServiceRow({
             ▶
           </ActionButton>
         )}
-        {isRunning && (
+        {statusRunning && (
           <>
             <ActionButton
               onClick={onRestart}
@@ -270,7 +379,7 @@ function ServiceRow({
             ...
           </span>
         )}
-        {(isRunning || service.status === "unhealthy") && (
+        {(statusRunning || service.status === "unhealthy") && (
           <ActionButton
             onClick={onViewLogs}
             disabled={false}
@@ -280,6 +389,22 @@ function ServiceRow({
             📋
           </ActionButton>
         )}
+        <ActionButton
+          onClick={onEdit}
+          disabled={false}
+          title="Edit"
+          color={colors.textSecondary}
+        >
+          ⚙
+        </ActionButton>
+        <ActionButton
+          onClick={onDelete}
+          disabled={isBusy || isRunning}
+          title={isRunning ? "Stop service to delete" : "Delete"}
+          color={colors.danger}
+        >
+          🗑
+        </ActionButton>
       </div>
     </div>
   );

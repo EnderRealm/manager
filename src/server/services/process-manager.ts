@@ -406,4 +406,31 @@ export function onStatusChange(handler: (event: ServiceStatusEvent) => void): ()
   return () => emitter.off("status-change", handler);
 }
 
+export function getServiceState(projectId: string, serviceId: string): ServiceState | null {
+  const projectStates = serviceStates.get(projectId);
+  if (!projectStates) return null;
+  return projectStates.get(serviceId) || null;
+}
+
+export function reloadProjectServices(projectId: string): void {
+  const config = loadConfig();
+  const project = config.projects.find((p) => p.name === projectId);
+  const projectStates = serviceStates.get(projectId);
+
+  if (!projectStates) {
+    serviceStates.set(projectId, new Map());
+    return;
+  }
+
+  // Remove states for services that no longer exist
+  const currentIds = new Set(project?.services?.map((s) => s.id) || []);
+  for (const serviceId of projectStates.keys()) {
+    if (!currentIds.has(serviceId)) {
+      projectStates.delete(serviceId);
+    }
+  }
+
+  logger.info({ projectId }, "Reloaded project services");
+}
+
 export { getSessionName };

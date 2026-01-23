@@ -15,14 +15,33 @@ export interface Service {
   name: string;
   cmd: string;
   type: ServiceType;
+  cwd?: string;
   port?: number;
   healthUrl?: string;
   autoStart: boolean;
   autoRestart: boolean;
+  restartDelay?: number;
+  maxRestarts?: number;
+  env?: Record<string, string>;
   status: ServiceStatus;
   lastHealthCheck?: number;
   lastError?: string;
   sessionName: string;
+}
+
+export interface ServiceInput {
+  id: string;
+  name?: string;
+  cmd: string;
+  type?: ServiceType;
+  cwd?: string;
+  port?: number;
+  healthUrl?: string;
+  autoStart?: boolean;
+  autoRestart?: boolean;
+  restartDelay?: number;
+  maxRestarts?: number;
+  env?: Record<string, string>;
 }
 
 export interface ServicesResponse {
@@ -68,6 +87,44 @@ async function restartService(projectId: string, serviceId: string): Promise<voi
   }
 }
 
+async function createService(projectId: string, input: ServiceInput): Promise<void> {
+  const res = await fetch(`/api/projects/${projectId}/services`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to create service");
+  }
+}
+
+async function updateServiceApi(
+  projectId: string,
+  serviceId: string,
+  updates: Partial<Omit<ServiceInput, "id">>
+): Promise<void> {
+  const res = await fetch(`/api/projects/${projectId}/services/${serviceId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to update service");
+  }
+}
+
+async function deleteService(projectId: string, serviceId: string): Promise<void> {
+  const res = await fetch(`/api/projects/${projectId}/services/${serviceId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to delete service");
+  }
+}
+
 export function useServices(projectId: string) {
   const queryClient = useQueryClient();
 
@@ -96,6 +153,22 @@ export function useServices(projectId: string) {
     onSuccess: invalidate,
   });
 
+  const createMutation = useMutation({
+    mutationFn: (input: ServiceInput) => createService(projectId, input),
+    onSuccess: invalidate,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ serviceId, updates }: { serviceId: string; updates: Partial<Omit<ServiceInput, "id">> }) =>
+      updateServiceApi(projectId, serviceId, updates),
+    onSuccess: invalidate,
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (serviceId: string) => deleteService(projectId, serviceId),
+    onSuccess: invalidate,
+  });
+
   return {
     tmuxAvailable: query.data?.tmuxAvailable ?? false,
     services: query.data?.services ?? [],
@@ -107,6 +180,12 @@ export function useServices(projectId: string) {
     isStarting: startMutation.isPending,
     isStopping: stopMutation.isPending,
     isRestarting: restartMutation.isPending,
+    create: createMutation.mutate,
+    update: updateMutation.mutate,
+    remove: removeMutation.mutate,
+    isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isDeleting: removeMutation.isPending,
     invalidate,
   };
 }
