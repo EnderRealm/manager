@@ -211,7 +211,7 @@ export async function getSessionProcessStats(
   }
 
   try {
-    // Get the PID of the shell process in the tmux pane
+    // Get the PID of the process running in the tmux pane
     const { stdout: pidOutput, exitCode: pidExit } = await execTmux([
       "display-message",
       "-t", sessionName,
@@ -222,13 +222,13 @@ export async function getSessionProcessStats(
       return null;
     }
 
-    const shellPid = parseInt(pidOutput.trim(), 10);
-    if (isNaN(shellPid)) {
+    const panePid = parseInt(pidOutput.trim(), 10);
+    if (isNaN(panePid)) {
       return null;
     }
 
-    // Get child processes of the shell (the actual service process)
-    const { stdout: psOutput } = await execPs(shellPid);
+    // Get stats for the pane process directly (tmux runs commands directly, not via shell)
+    const { stdout: psOutput } = await execPs(panePid);
     if (!psOutput.trim()) {
       return null;
     }
@@ -239,7 +239,7 @@ export async function getSessionProcessStats(
       return null;
     }
 
-    // Skip header, get first child process
+    // Skip header
     const processLine = lines[1];
     if (!processLine) {
       return null;
@@ -269,9 +269,9 @@ export async function getSessionProcessStats(
   }
 }
 
-async function execPs(ppid: number): Promise<{ stdout: string }> {
+async function execPs(pid: number): Promise<{ stdout: string }> {
   return new Promise((resolve) => {
-    const proc = spawn("ps", ["-o", "pid,pcpu,rss,etime,command", "--ppid", String(ppid)], {
+    const proc = spawn("ps", ["-o", "pid,pcpu,rss,etime,command", "-p", String(pid)], {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
