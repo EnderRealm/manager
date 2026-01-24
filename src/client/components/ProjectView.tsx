@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { KanbanBoard } from "./KanbanBoard.tsx";
 import { TableView } from "./TableView.tsx";
-import { ServicesDropdown } from "./ServicesDropdown.tsx";
+import { ServicesView } from "./ServicesView.tsx";
 import { LogsPanel } from "./LogsPanel.tsx";
 import { colors, radius } from "../theme.ts";
 
-type ViewTab = "board" | "table";
+type ViewTab = "board" | "table" | "services";
 
 export function ProjectView() {
   const { id: projectId } = useParams<{ id: string }>();
@@ -36,18 +36,18 @@ export function ProjectView() {
           isActive={activeView === "table"}
           onClick={() => setActiveView("table")}
         />
-        <div style={{ flex: 1 }} />
-        {projectId && (
-          <ServicesDropdown
-            projectId={projectId}
-            onViewLogs={setLogsServiceId}
-          />
-        )}
+        <TabButton
+          label="Services"
+          isActive={activeView === "services"}
+          onClick={() => setActiveView("services")}
+        />
       </div>
 
       {/* View content */}
       <div style={{ flex: 1, overflow: "hidden" }}>
-        {activeView === "board" ? <KanbanBoard /> : <TableView />}
+        {activeView === "board" && <KanbanBoard />}
+        {activeView === "table" && <TableView />}
+        {activeView === "services" && <ServicesView onViewLogs={setLogsServiceId} />}
       </div>
 
       {/* Logs panel */}
