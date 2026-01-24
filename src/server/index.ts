@@ -6,6 +6,7 @@ import { projects } from "./routes/projects.ts";
 import { config as configRoutes } from "./routes/config.ts";
 import { events } from "./routes/events.ts";
 import { services } from "./routes/services.ts";
+import { agents } from "./routes/agents.ts";
 import { initialize as initProcessManager } from "./services/process-manager.ts";
 
 const app = new Hono();
@@ -42,6 +43,7 @@ app.route("/api", projects);
 app.route("/api", configRoutes);
 app.route("/api", events);
 app.route("/api", services);
+app.route("/api", agents);
 
 // Initialize process manager (adopts orphan sessions, starts auto-start services)
 initProcessManager().catch((err) => {

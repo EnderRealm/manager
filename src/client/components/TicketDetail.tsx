@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTicket, useTicketMutations, useAllTickets, type Ticket } from "../hooks/useTickets.ts";
 import { colors, fonts, radius, typeColors, statusColors } from "../theme.ts";
+import { AgentRunPanel } from "./AgentRunPanel.tsx";
 
 type TabId = "detail" | "raw";
 
@@ -300,6 +301,7 @@ export function TicketDetailContent({
   const { data: allTickets } = useAllTickets(projectId);
   const { start, close, reopen } = useTicketMutations(projectId);
   const [activeTab, setActiveTab] = useState<TabId>("detail");
+  const [showAgentPanel, setShowAgentPanel] = useState(false);
 
   const actionButtonStyle = {
     padding: "8px 16px",
@@ -555,7 +557,31 @@ export function TicketDetailContent({
             Reopen
           </button>
         )}
+        {ticket.status !== "closed" && (
+          <button
+            onClick={() => setShowAgentPanel(true)}
+            style={{
+              ...actionButtonStyle,
+              backgroundColor: colors.accentEmphasis,
+              borderColor: colors.accent,
+            }}
+          >
+            Run with Claude
+          </button>
+        )}
       </div>
+
+      {/* Agent Panel */}
+      {showAgentPanel && (
+        <div style={{ marginTop: 24 }}>
+          <AgentRunPanel
+            projectId={projectId}
+            ticketId={ticketId}
+            ticketTitle={ticket.title}
+            onClose={() => setShowAgentPanel(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
