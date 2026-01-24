@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useTicket, useTicketMutations, useAllTickets, type Ticket } from "../hooks/useTickets.ts";
 import { colors, fonts, radius, typeColors, statusColors } from "../theme.ts";
 import { AgentRunPanel } from "./AgentRunPanel.tsx";
+import { TicketSummaryById } from "./TicketSummary.tsx";
 
 type TabId = "detail" | "raw";
 
@@ -141,44 +142,16 @@ function DependencyTreeItem({
   };
 
   return (
-    <div style={{ marginLeft: depth * 16 }}>
-      <Link
-        to={`/projects/${projectId}/tickets/${ticketId}`}
+    <div style={{ marginLeft: depth * 16, marginBottom: 6 }}>
+      <TicketSummaryById
+        ticketId={ticketId}
+        allTickets={allTickets}
+        projectId={projectId}
         onClick={handleClick}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "6px 10px",
-          backgroundColor: colors.overlay,
-          border: `1px solid ${colors.border}`,
-          borderRadius: radius.sm,
-          color: colors.accent,
-          fontFamily: fonts.mono,
-          fontSize: 12,
-          textDecoration: "none",
-          marginBottom: 6,
-        }}
-      >
-        <span>{ticketId}</span>
-        {ticket && (
-          <span
-            style={{
-              color: colors.textSecondary,
-              fontFamily: fonts.sans,
-              fontSize: 12,
-              maxWidth: 200,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {ticket.title || "(no title)"}
-          </span>
-        )}
-      </Link>
+        maxTitleWidth={Math.max(150, 250 - depth * 20)}
+      />
       {ticket && ticket.deps.length > 0 && (
-        <div>
+        <div style={{ marginTop: 4 }}>
           {ticket.deps.map((depId) => (
             <DependencyTreeItem
               key={depId}
@@ -416,7 +389,19 @@ export function TicketDetailContent({
         {ticket.parent && (
           <>
             <div style={{ color: colors.textMuted }}>Parent</div>
-            <div style={{ color: colors.accent, fontFamily: fonts.mono }}>{ticket.parent}</div>
+            <div>
+              <TicketSummaryById
+                ticketId={ticket.parent}
+                allTickets={allTickets ?? []}
+                projectId={projectId}
+                onClick={(e) => {
+                  if (onTicketClick) {
+                    e.preventDefault();
+                    onTicketClick(ticket.parent!);
+                  }
+                }}
+              />
+            </div>
           </>
         )}
         {ticket.deps.length > 0 && (
@@ -485,29 +470,15 @@ export function TicketDetailContent({
 
           <Section title="Children">
             {ticket.children && ticket.children.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {ticket.children.map((childId) => (
-                  <Link
+                  <TicketSummaryById
                     key={childId}
-                    to={`/projects/${projectId}/tickets/${childId}`}
+                    ticketId={childId}
+                    allTickets={allTickets ?? []}
+                    projectId={projectId}
                     onClick={(e) => handleChildClick(childId, e)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 12px",
-                      backgroundColor: colors.overlay,
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: radius.sm,
-                      color: colors.accent,
-                      fontFamily: fonts.mono,
-                      fontSize: 13,
-                      textDecoration: "none",
-                      width: "fit-content",
-                    }}
-                  >
-                    {childId}
-                  </Link>
+                  />
                 ))}
               </div>
             ) : (
