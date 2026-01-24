@@ -132,7 +132,7 @@ async function getProjectSummary(
       return {
         language: name,
         percentage: totalBytes > 0 ? (bytes / totalBytes) * 100 : 0,
-        color: languageColors[name] ?? languageColors.Unknown,
+        color: languageColors[name] ?? "#6e7681",
       };
     })
     .filter((lang) => lang.percentage >= 5)

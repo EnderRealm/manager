@@ -507,7 +507,7 @@ export function KanbanBoard() {
     if (targetIndex < 0 || targetIndex >= swipeColumns.length) return;
 
     const targetColumn = swipeColumns[targetIndex];
-    if (!isValidTransition(sourceStatus, targetColumn)) return;
+    if (!targetColumn || !isValidTransition(sourceStatus, targetColumn)) return;
 
     // Hide ticket immediately
     setDroppedTicketId(ticket.id);
@@ -946,15 +946,19 @@ function SwipeableTicketCard({
     if (!card) return;
 
     const handleTouchStart = (e: TouchEvent) => {
-      startX.current = e.touches[0].clientX;
-      startY.current = e.touches[0].clientY;
+      const touch = e.touches[0];
+      if (!touch) return;
+      startX.current = touch.clientX;
+      startY.current = touch.clientY;
       isHorizontalSwipe.current = null;
       setIsSwiping(true);
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      const currentX = e.touches[0].clientX;
-      const currentY = e.touches[0].clientY;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const currentX = touch.clientX;
+      const currentY = touch.clientY;
       const diffX = currentX - startX.current;
       const diffY = currentY - startY.current;
 
