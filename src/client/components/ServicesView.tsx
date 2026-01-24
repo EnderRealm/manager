@@ -89,8 +89,16 @@ export function ServicesView({ onViewLogs }: ServicesViewProps) {
     setDeletingService(service);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deletingService) return;
+
+    // Stop first if running
+    if (isServiceRunning(deletingService)) {
+      await stop(deletingService.id);
+      // Small delay to let the service stop
+      await new Promise(r => setTimeout(r, 500));
+    }
+
     remove(deletingService.id, {
       onSuccess: () => setDeletingService(null),
     });
@@ -212,7 +220,7 @@ export function ServicesView({ onViewLogs }: ServicesViewProps) {
         message={
           deletingService
             ? isServiceRunning(deletingService)
-              ? `"${deletingService.name}" is currently running. Stop it first before deleting.`
+              ? `"${deletingService.name}" is currently running. It will be stopped and then deleted. This cannot be undone.`
               : `Are you sure you want to delete "${deletingService.name}"? This cannot be undone.`
             : ""
         }
@@ -250,7 +258,25 @@ function ServiceCard({
   const isRunning = service.status === "running";
   const isStopped = service.status === "stopped" || service.status === "crashed";
   const isTransitioning = service.status === "starting" || service.status === "restarting";
-  const canDelete = isStopped && !isBusy;
+
+  // Build metadata items for the info line
+  const metaItems: string[] = [];
+  if (service.stats) {
+    metaItems.push(`Up ${formatUptime(service.stats.uptime)}`);
+    metaItems.push(formatMemory(service.stats.memory));
+  }
+  if (service.port) {
+    metaItems.push(`Port ${service.port}`);
+  }
+  if (service.cwd && service.cwd !== ".") {
+    metaItems.push(service.cwd);
+  }
+  if (service.autoRestart) {
+    metaItems.push("Auto-restart");
+  }
+  if (service.autoStart) {
+    metaItems.push("Auto-start");
+  }
 
   return (
     <div
@@ -258,31 +284,34 @@ function ServiceCard({
         backgroundColor: colors.surface,
         border: `1px solid ${colors.border}`,
         borderRadius: radius.lg,
-        padding: 16,
+        padding: "14px 16px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
         {/* Status indicator */}
         <div
           style={{
-            width: 12,
-            height: 12,
+            width: 10,
+            height: 10,
             borderRadius: "50%",
             backgroundColor: statusColors[service.status],
-            marginTop: 4,
+            marginTop: 5,
             flexShrink: 0,
           }}
         />
 
         {/* Service info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          {/* Header row: name, badges, status */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
             <h3
               style={{
                 margin: 0,
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: 600,
+                fontFamily: fonts.mono,
                 color: colors.textPrimary,
+                letterSpacing: "-0.01em",
               }}
             >
               {service.name}
@@ -293,32 +322,38 @@ function ServiceCard({
                   padding: "2px 6px",
                   fontSize: 10,
                   fontWeight: 500,
+                  fontFamily: fonts.mono,
                   backgroundColor: colors.accentEmphasis,
                   color: colors.accent,
                   borderRadius: radius.sm,
-                  textTransform: "uppercase",
+                  textTransform: "lowercase",
                 }}
               >
-                Agent
+                agent
               </span>
             )}
-            <span
-              style={{
-                fontSize: 12,
-                color: statusColors[service.status],
-                fontWeight: 500,
-              }}
-            >
-              {statusLabels[service.status]}
-            </span>
+            {service.status !== "running" && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: fonts.mono,
+                  color: statusColors[service.status],
+                  fontWeight: 500,
+                  textTransform: "lowercase",
+                }}
+              >
+                {statusLabels[service.status]}
+              </span>
+            )}
           </div>
 
+          {/* Command */}
           <div
             style={{
               fontFamily: fonts.mono,
               fontSize: 12,
               color: colors.textSecondary,
-              marginBottom: 8,
+              marginBottom: 6,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -327,36 +362,31 @@ function ServiceCard({
             {service.cmd}
           </div>
 
-          {/* Process stats for running services */}
-          {service.stats && (
+          {/* Unified metadata line */}
+          {metaItems.length > 0 && (
             <div
               style={{
-                display: "flex",
-                gap: 16,
                 fontSize: 12,
-                color: colors.textSecondary,
-                marginBottom: 8,
-                padding: "6px 10px",
-                backgroundColor: colors.overlay,
-                borderRadius: radius.sm,
                 fontFamily: fonts.mono,
+                color: colors.textSecondary,
               }}
             >
-              <span title="Uptime">⏱ {formatUptime(service.stats.uptime)}</span>
-              <span title="Memory (RSS)">💾 {formatMemory(service.stats.memory)}</span>
-              <span title="CPU %">⚡ {service.stats.cpu.toFixed(1)}%</span>
-              <span title="Process ID" style={{ color: colors.textMuted }}>
-                PID {service.stats.pid}
-              </span>
+              {metaItems.map((item, i) => (
+                <span key={i}>
+                  {i > 0 && <span style={{ margin: "0 6px", color: colors.textMuted }}>·</span>}
+                  {item}
+                </span>
+              ))}
+              {service.stats && (
+                <span
+                  style={{ marginLeft: 10, color: colors.textMuted, fontSize: 11 }}
+                  title={`Process ID: ${service.stats.pid}`}
+                >
+                  pid {service.stats.pid}
+                </span>
+              )}
             </div>
           )}
-
-          <div style={{ display: "flex", gap: 16, fontSize: 12, color: colors.textMuted }}>
-            {service.port && <span>Port: {service.port}</span>}
-            {service.cwd && service.cwd !== "." && <span>CWD: {service.cwd}</span>}
-            {service.autoStart && <span>Auto-start</span>}
-            {service.autoRestart && <span>Auto-restart</span>}
-          </div>
 
           {service.lastError && service.status === "crashed" && (
             <div
@@ -376,7 +406,7 @@ function ServiceCard({
         </div>
 
         {/* Actions */}
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
           {isStopped && (
             <ActionButton onClick={onStart} disabled={isBusy} color={colors.success}>
               Start
@@ -393,7 +423,7 @@ function ServiceCard({
             </>
           )}
           {isTransitioning && (
-            <span style={{ padding: "8px 12px", color: colors.textMuted, fontSize: 13 }}>
+            <span style={{ padding: "6px 10px", color: colors.textMuted, fontSize: 12 }}>
               ...
             </span>
           )}
@@ -405,7 +435,7 @@ function ServiceCard({
           <ActionButton onClick={onEdit} disabled={false} color={colors.textSecondary}>
             Edit
           </ActionButton>
-          <ActionButton onClick={onDelete} disabled={!canDelete} color={colors.danger}>
+          <ActionButton onClick={onDelete} disabled={isBusy} color={colors.danger}>
             Delete
           </ActionButton>
         </div>
@@ -425,21 +455,27 @@ function ActionButton({
   color: string;
   children: React.ReactNode;
 }) {
+  const [hovered, setHovered] = useState(false);
+
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        padding: "6px 12px",
-        backgroundColor: "transparent",
-        border: `1px solid ${colors.border}`,
+        padding: "5px 10px",
+        backgroundColor: hovered && !disabled ? colors.overlay : "transparent",
+        border: `1px solid ${hovered && !disabled ? colors.textMuted : colors.border}`,
         borderRadius: radius.sm,
         cursor: disabled ? "not-allowed" : "pointer",
         color: disabled ? colors.textMuted : color,
-        fontSize: 13,
-        fontWeight: 500,
+        fontSize: 12,
+        fontFamily: fonts.mono,
+        fontWeight: 400,
         opacity: disabled ? 0.5 : 1,
-        transition: "background-color 0.15s",
+        transition: "all 0.15s ease",
+        textTransform: "lowercase",
       }}
     >
       {children}

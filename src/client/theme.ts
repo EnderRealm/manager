@@ -56,8 +56,8 @@ export const typeColors: Record<string, string> = {
 };
 
 export const fonts = {
-  sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif',
-  mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+  sans: '"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  mono: '"Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
 };
 
 export const radius = {
