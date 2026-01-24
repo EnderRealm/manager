@@ -15,7 +15,7 @@ import {
   getServiceState,
   reloadProjectServices,
 } from "../services/process-manager.ts";
-import { captureLogs, getSessionName } from "../services/tmux.ts";
+import { captureLogs, getSessionName, getSessionProcessStats } from "../services/tmux.ts";
 
 const services = new Hono();
 
@@ -26,7 +26,7 @@ function getProjectPath(id: string): string | null {
 }
 
 // List services with current status
-services.get("/projects/:id/services", (c) => {
+services.get("/projects/:id/services", async (c) => {
   const projectId = c.req.param("id");
   const projectPath = getProjectPath(projectId);
 
@@ -37,26 +37,37 @@ services.get("/projects/:id/services", (c) => {
   const tmuxAvailable = isTmuxAvailable();
   const serviceList = getAllServices(projectId);
 
+  // Gather process stats for running services
+  const servicesWithStats = await Promise.all(
+    serviceList.map(async (s) => {
+      const isRunning = s.state.status === "running" || s.state.status === "starting";
+      const stats = isRunning ? await getSessionProcessStats(projectId, s.config.id) : null;
+
+      return {
+        id: s.config.id,
+        name: s.config.name,
+        cmd: s.config.cmd,
+        type: s.config.type || "service",
+        cwd: s.config.cwd,
+        port: s.config.port,
+        healthUrl: s.config.healthUrl,
+        autoStart: s.config.autoStart,
+        autoRestart: s.config.autoRestart,
+        restartDelay: s.config.restartDelay,
+        maxRestarts: s.config.maxRestarts,
+        env: s.config.env,
+        status: s.state.status,
+        lastHealthCheck: s.state.lastHealthCheck,
+        lastError: s.state.lastError,
+        sessionName: getSessionName(projectId, s.config.id),
+        stats,
+      };
+    })
+  );
+
   return c.json({
     tmuxAvailable,
-    services: serviceList.map((s) => ({
-      id: s.config.id,
-      name: s.config.name,
-      cmd: s.config.cmd,
-      type: s.config.type || "service",
-      cwd: s.config.cwd,
-      port: s.config.port,
-      healthUrl: s.config.healthUrl,
-      autoStart: s.config.autoStart,
-      autoRestart: s.config.autoRestart,
-      restartDelay: s.config.restartDelay,
-      maxRestarts: s.config.maxRestarts,
-      env: s.config.env,
-      status: s.state.status,
-      lastHealthCheck: s.state.lastHealthCheck,
-      lastError: s.state.lastError,
-      sessionName: getSessionName(projectId, s.config.id),
-    })),
+    services: servicesWithStats,
   });
 });
 

@@ -191,3 +191,129 @@ export function parseSessionName(sessionName: string): { projectId: string; serv
 export function getSessionName(projectId: string, serviceId: string): string {
   return buildSessionName(projectId, serviceId);
 }
+
+export interface ProcessStats {
+  pid: number;
+  cpu: number;
+  memory: number; // RSS in bytes
+  uptime: number; // seconds
+  command: string;
+}
+
+export async function getSessionProcessStats(
+  projectId: string,
+  serviceId: string
+): Promise<ProcessStats | null> {
+  const sessionName = buildSessionName(projectId, serviceId);
+
+  if (!(await sessionExists(projectId, serviceId))) {
+    return null;
+  }
+
+  try {
+    // Get the PID of the shell process in the tmux pane
+    const { stdout: pidOutput, exitCode: pidExit } = await execTmux([
+      "display-message",
+      "-t", sessionName,
+      "-p", "#{pane_pid}",
+    ]);
+
+    if (pidExit !== 0 || !pidOutput.trim()) {
+      return null;
+    }
+
+    const shellPid = parseInt(pidOutput.trim(), 10);
+    if (isNaN(shellPid)) {
+      return null;
+    }
+
+    // Get child processes of the shell (the actual service process)
+    const { stdout: psOutput } = await execPs(shellPid);
+    if (!psOutput.trim()) {
+      return null;
+    }
+
+    // Parse ps output: PID, %CPU, RSS (KB), ELAPSED, COMMAND
+    const lines = psOutput.trim().split("\n");
+    if (lines.length < 2) {
+      return null;
+    }
+
+    // Skip header, get first child process
+    const processLine = lines[1];
+    if (!processLine) {
+      return null;
+    }
+
+    const parts = processLine.trim().split(/\s+/);
+    if (parts.length < 5) {
+      return null;
+    }
+
+    const pid = parseInt(parts[0] || "0", 10);
+    const cpu = parseFloat(parts[1] || "0");
+    const rssKb = parseInt(parts[2] || "0", 10);
+    const elapsed = parts[3] || "0:00";
+    const command = parts.slice(4).join(" ");
+
+    return {
+      pid,
+      cpu,
+      memory: rssKb * 1024, // Convert KB to bytes
+      uptime: parseElapsed(elapsed),
+      command,
+    };
+  } catch (err) {
+    logger.debug({ projectId, serviceId, err }, "Failed to get process stats");
+    return null;
+  }
+}
+
+async function execPs(ppid: number): Promise<{ stdout: string }> {
+  return new Promise((resolve) => {
+    const proc = spawn("ps", ["-o", "pid,pcpu,rss,etime,command", "--ppid", String(ppid)], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    proc.on("close", () => {
+      resolve({ stdout });
+    });
+
+    proc.on("error", () => {
+      resolve({ stdout: "" });
+    });
+  });
+}
+
+function parseElapsed(elapsed: string): number {
+  // Format: [[DD-]HH:]MM:SS or MM:SS.xx
+  const parts = elapsed.split(/[-:]/);
+  let seconds = 0;
+
+  if (elapsed.includes("-")) {
+    // DD-HH:MM:SS
+    const days = parseInt(parts[0] || "0", 10);
+    const hours = parseInt(parts[1] || "0", 10);
+    const mins = parseInt(parts[2] || "0", 10);
+    const secs = parseInt(parts[3] || "0", 10);
+    seconds = days * 86400 + hours * 3600 + mins * 60 + secs;
+  } else if (parts.length === 3) {
+    // HH:MM:SS
+    const hours = parseInt(parts[0] || "0", 10);
+    const mins = parseInt(parts[1] || "0", 10);
+    const secs = parseInt(parts[2] || "0", 10);
+    seconds = hours * 3600 + mins * 60 + secs;
+  } else if (parts.length === 2) {
+    // MM:SS
+    const mins = parseInt(parts[0] || "0", 10);
+    const secs = parseFloat(parts[1] || "0");
+    seconds = mins * 60 + Math.floor(secs);
+  }
+
+  return seconds;
+}

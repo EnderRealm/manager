@@ -24,6 +24,38 @@ const statusLabels: Record<ServiceStatus, string> = {
   restarting: "Restarting",
 };
 
+function formatUptime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  if (seconds < 3600) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+  }
+  if (seconds < 86400) {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+}
+
+function formatMemory(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 interface ServicesViewProps {
   onViewLogs?: (serviceId: string) => void;
 }
@@ -294,6 +326,30 @@ function ServiceCard({
           >
             {service.cmd}
           </div>
+
+          {/* Process stats for running services */}
+          {service.stats && (
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                fontSize: 12,
+                color: colors.textSecondary,
+                marginBottom: 8,
+                padding: "6px 10px",
+                backgroundColor: colors.overlay,
+                borderRadius: radius.sm,
+                fontFamily: fonts.mono,
+              }}
+            >
+              <span title="Uptime">⏱ {formatUptime(service.stats.uptime)}</span>
+              <span title="Memory (RSS)">💾 {formatMemory(service.stats.memory)}</span>
+              <span title="CPU %">⚡ {service.stats.cpu.toFixed(1)}%</span>
+              <span title="Process ID" style={{ color: colors.textMuted }}>
+                PID {service.stats.pid}
+              </span>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 16, fontSize: 12, color: colors.textMuted }}>
             {service.port && <span>Port: {service.port}</span>}

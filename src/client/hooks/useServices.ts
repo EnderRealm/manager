@@ -10,6 +10,14 @@ export type ServiceStatus =
 
 export type ServiceType = "service" | "agent";
 
+export interface ProcessStats {
+  pid: number;
+  cpu: number;
+  memory: number; // RSS in bytes
+  uptime: number; // seconds
+  command: string;
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -27,6 +35,7 @@ export interface Service {
   lastHealthCheck?: number;
   lastError?: string;
   sessionName: string;
+  stats?: ProcessStats | null;
 }
 
 export interface ServiceInput {
