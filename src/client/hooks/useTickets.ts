@@ -113,9 +113,16 @@ export function useCreateTicket(projectId: string) {
 
   return useMutation({
     mutationFn: (input: CreateTicketInput) => createTicket(projectId, input),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tickets", projectId] });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      // If a parent was specified, invalidate the parent ticket's query
+      // so its children list updates
+      if (variables.parent) {
+        queryClient.invalidateQueries({
+          queryKey: ["ticket", projectId, variables.parent],
+        });
+      }
     },
   });
 }
@@ -172,39 +179,50 @@ async function removeDependency(
 export function useTicketMutations(projectId: string) {
   const queryClient = useQueryClient();
 
-  const invalidateTickets = () => {
+  const invalidateTickets = (ticketId?: string) => {
     queryClient.invalidateQueries({ queryKey: ["tickets", projectId] });
     queryClient.invalidateQueries({ queryKey: ["projects"] });
+    if (ticketId) {
+      queryClient.invalidateQueries({
+        queryKey: ["ticket", projectId, ticketId],
+      });
+    }
   };
 
   const startMutation = useMutation({
     mutationFn: (ticketId: string) =>
       updateTicketStatus(projectId, ticketId, "start"),
-    onSuccess: invalidateTickets,
+    onSuccess: (_data, ticketId) => invalidateTickets(ticketId),
   });
 
   const closeMutation = useMutation({
     mutationFn: (ticketId: string) =>
       updateTicketStatus(projectId, ticketId, "close"),
-    onSuccess: invalidateTickets,
+    onSuccess: (_data, ticketId) => invalidateTickets(ticketId),
   });
 
   const reopenMutation = useMutation({
     mutationFn: (ticketId: string) =>
       updateTicketStatus(projectId, ticketId, "reopen"),
-    onSuccess: invalidateTickets,
+    onSuccess: (_data, ticketId) => invalidateTickets(ticketId),
   });
 
   const addDepMutation = useMutation({
     mutationFn: ({ ticketId, blockerId }: { ticketId: string; blockerId: string }) =>
       addDependency(projectId, ticketId, blockerId),
-    onSuccess: invalidateTickets,
+    onSuccess: (_data, { ticketId, blockerId }) => {
+      invalidateTickets(ticketId);
+      invalidateTickets(blockerId);
+    },
   });
 
   const removeDepMutation = useMutation({
     mutationFn: ({ ticketId, blockerId }: { ticketId: string; blockerId: string }) =>
       removeDependency(projectId, ticketId, blockerId),
-    onSuccess: invalidateTickets,
+    onSuccess: (_data, { ticketId, blockerId }) => {
+      invalidateTickets(ticketId);
+      invalidateTickets(blockerId);
+    },
   });
 
   // Track which tickets are currently being mutated
