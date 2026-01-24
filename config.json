@@ -8,26 +8,105 @@
           "id": "server",
           "name": "API Server",
           "cmd": "bun --watch run src/server/index.ts",
+          "type": "service",
+          "cwd": ".",
           "port": 3000,
           "healthUrl": "http://localhost:3000/api/health",
           "autoStart": false,
-          "autoRestart": true
+          "autoRestart": true,
+          "restartDelay": 3000,
+          "maxRestarts": 5
         },
         {
           "id": "web",
           "name": "Vite Dev Server",
           "cmd": "bunx vite",
+          "type": "service",
+          "cwd": ".",
           "port": 5173,
           "autoStart": false,
-          "autoRestart": false
+          "autoRestart": true,
+          "restartDelay": 3000,
+          "maxRestarts": 5
         },
         {
           "id": "agent",
           "name": "Happy",
           "cmd": "happy",
           "type": "agent",
+          "cwd": ".",
           "autoStart": false,
-          "autoRestart": true
+          "autoRestart": true,
+          "restartDelay": 3000,
+          "maxRestarts": 5
+        }
+      ]
+    },
+    {
+      "name": "Ghostwheel",
+      "path": "/Users/steve/code/ghostwheel",
+      "services": [
+        {
+          "id": "happy",
+          "name": "Happy",
+          "cmd": "happy",
+          "type": "agent",
+          "cwd": ".",
+          "autoStart": false,
+          "autoRestart": true,
+          "restartDelay": 3000,
+          "maxRestarts": 5
+        }
+      ]
+    },
+    {
+      "name": "Agentics",
+      "path": "/Users/steve/code/agentics",
+      "services": [
+        {
+          "id": "happy",
+          "name": "Happy",
+          "cmd": "happy",
+          "type": "agent",
+          "cwd": ".",
+          "autoStart": false,
+          "autoRestart": true,
+          "restartDelay": 3000,
+          "maxRestarts": 5
+        }
+      ]
+    },
+    {
+      "name": "Powers",
+      "path": "/Users/steve/code/powers",
+      "services": [
+        {
+          "id": "happy",
+          "name": "Happy",
+          "cmd": "happy",
+          "type": "agent",
+          "cwd": ".",
+          "autoStart": false,
+          "autoRestart": true,
+          "restartDelay": 3000,
+          "maxRestarts": 5
+        }
+      ]
+    },
+    {
+      "name": "Ticket",
+      "path": "/Users/steve/code/ticket",
+      "services": [
+        {
+          "id": "happy",
+          "name": "Happy",
+          "cmd": "happy",
+          "type": "agent",
+          "cwd": ".",
+          "autoStart": false,
+          "autoRestart": true,
+          "restartDelay": 3000,
+          "maxRestarts": 5
         }
       ]
     }
