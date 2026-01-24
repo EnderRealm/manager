@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
-import { colors, radius, inputBase, buttonPrimary, buttonSecondary } from "../theme.ts";
+import { colors, fonts, radius, inputBase, buttonPrimary, buttonSecondary } from "../theme.ts";
 import type { ServiceInput, ServiceType, Service } from "../hooks/useServices.ts";
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 interface ServiceFormProps {
   initialData?: Service;
@@ -19,8 +27,8 @@ export function ServiceForm({
   isPending,
   error,
 }: ServiceFormProps) {
-  const [id, setId] = useState(initialData?.id || "");
   const [name, setName] = useState(initialData?.name || "");
+  const id = isEditMode ? (initialData?.id || "") : slugify(name);
   const [cmd, setCmd] = useState(initialData?.cmd || "");
   const [type, setType] = useState<ServiceType>(initialData?.type || "service");
   const [cwd, setCwd] = useState(initialData?.cwd || "");
@@ -40,7 +48,6 @@ export function ServiceForm({
 
   useEffect(() => {
     if (initialData) {
-      setId(initialData.id);
       setName(initialData.name);
       setCmd(initialData.cmd);
       setType(initialData.type || "service");
@@ -62,10 +69,10 @@ export function ServiceForm({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!isEditMode && !id.trim()) {
-      newErrors.id = "ID is required";
-    } else if (!isEditMode && !/^[a-z0-9-]+$/.test(id)) {
-      newErrors.id = "ID must be lowercase alphanumeric with dashes";
+    if (!name.trim()) {
+      newErrors.name = "Name is required";
+    } else if (!isEditMode && !id) {
+      newErrors.name = "Name must contain at least one letter or number";
     }
 
     if (!cmd.trim()) {
@@ -168,39 +175,30 @@ export function ServiceForm({
       <form onSubmit={handleSubmit}>
         <div style={fieldStyle}>
           <label style={labelStyle}>
-            ID <span style={{ color: colors.danger }}>*</span>
+            Name <span style={{ color: colors.danger }}>*</span>
           </label>
-          <input
-            type="text"
-            value={id}
-            onChange={(e) => setId(e.target.value)}
-            disabled={isEditMode}
-            placeholder="my-service"
-            style={{
-              ...inputStyle,
-              borderColor: errors.id ? colors.danger : colors.border,
-              opacity: isEditMode ? 0.6 : 1,
-            }}
-          />
-          {errors.id && (
-            <div style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>
-              {errors.id}
-            </div>
-          )}
-        </div>
-
-        <div style={fieldStyle}>
-          <label style={labelStyle}>Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            disabled={isEditMode}
             placeholder="My Service"
-            style={inputStyle}
+            style={{
+              ...inputStyle,
+              borderColor: errors.name ? colors.danger : colors.border,
+              opacity: isEditMode ? 0.6 : 1,
+            }}
           />
-          <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>
-            Display name (defaults to ID if empty)
-          </div>
+          {errors.name && (
+            <div style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>
+              {errors.name}
+            </div>
+          )}
+          {!isEditMode && id && (
+            <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4, fontFamily: fonts.mono }}>
+              tmux session: mgr-{"<project>"}-{id}
+            </div>
+          )}
         </div>
 
         <div style={fieldStyle}>
