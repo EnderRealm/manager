@@ -208,7 +208,9 @@ export function TableView() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 16,
+          marginBottom: 24,
+          flexWrap: "wrap",
+          gap: 16,
         }}
       >
         <h1
@@ -221,63 +223,55 @@ export function TableView() {
         >
           Table
         </h1>
-        <button
-          onClick={() => setShowNewTicketForm(true)}
-          style={buttonPrimary}
-        >
-          + New Ticket
-        </button>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <FilterDropdown
-          label="Type"
-          options={[...TICKET_TYPES]}
-          selected={filters.types}
-          onChange={(selected) => setFilters((f) => ({ ...f, types: selected as string[] }))}
-        />
-        <FilterDropdown
-          label="Priority"
-          options={[...PRIORITIES]}
-          selected={filters.priorities}
-          onChange={(selected) => setFilters((f) => ({ ...f, priorities: selected as number[] }))}
-          renderOption={(p) => `P${p}`}
-        />
-        <FilterDropdown
-          label="Status"
-          options={[...STATUSES]}
-          selected={filters.statuses}
-          onChange={(selected) => setFilters((f) => ({ ...f, statuses: selected as string[] }))}
-          renderOption={(s) => s === "in_progress" ? "In Progress" : String(s).charAt(0).toUpperCase() + String(s).slice(1)}
-        />
-        {availableAssignees.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <FilterDropdown
-            label="Assignee"
-            options={availableAssignees}
-            selected={filters.assignees}
-            onChange={(selected) => setFilters((f) => ({ ...f, assignees: selected as string[] }))}
+            label="Type"
+            options={[...TICKET_TYPES]}
+            selected={filters.types}
+            onChange={(selected) => setFilters((f) => ({ ...f, types: selected as string[] }))}
           />
-        )}
-        {hasActiveFilters && (
+          <FilterDropdown
+            label="Priority"
+            options={[...PRIORITIES]}
+            selected={filters.priorities}
+            onChange={(selected) => setFilters((f) => ({ ...f, priorities: selected as number[] }))}
+            renderOption={(p) => `P${p}`}
+          />
+          <FilterDropdown
+            label="Status"
+            options={[...STATUSES]}
+            selected={filters.statuses}
+            onChange={(selected) => setFilters((f) => ({ ...f, statuses: selected as string[] }))}
+            renderOption={(s) => s === "in_progress" ? "In Progress" : String(s).charAt(0).toUpperCase() + String(s).slice(1)}
+          />
+          {availableAssignees.length > 0 && (
+            <FilterDropdown
+              label="Assignee"
+              options={availableAssignees}
+              selected={filters.assignees}
+              onChange={(selected) => setFilters((f) => ({ ...f, assignees: selected as string[] }))}
+            />
+          )}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              style={{
+                ...buttonSecondary,
+                padding: "6px 12px",
+                fontSize: 13,
+                color: colors.textSecondary,
+              }}
+            >
+              Clear filters
+            </button>
+          )}
           <button
-            onClick={clearAllFilters}
-            style={{
-              ...buttonSecondary,
-              padding: "6px 12px",
-              fontSize: 12,
-            }}
+            onClick={() => setShowNewTicketForm(true)}
+            style={buttonPrimary}
           >
-            Clear filters
+            + New Ticket
           </button>
-        )}
+        </div>
       </div>
 
       <div
