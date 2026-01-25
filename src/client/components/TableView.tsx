@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useAllTickets, type Ticket } from "../hooks/useTickets.ts";
 import { TicketDetailContent } from "./TicketDetail.tsx";
@@ -44,7 +44,18 @@ function FilterDropdown({
   onChange: (selected: (string | number)[]) => void;
   renderOption?: (opt: string | number) => string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const toggleOption = (opt: string | number) => {
     if (selected.includes(opt)) {
@@ -54,68 +65,74 @@ function FilterDropdown({
     }
   };
 
+  const firstSelected = selected[0];
+  const displayText = selected.length === 0
+    ? label
+    : selected.length === 1 && firstSelected !== undefined
+      ? renderOption ? renderOption(firstSelected) : String(firstSelected)
+      : `${selected.length} selected`;
+
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={dropdownRef} style={{ position: "relative" }}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setIsOpen(!isOpen)}
         style={{
           ...buttonSecondary,
           padding: "6px 12px",
-          fontSize: 12,
+          fontSize: 13,
           display: "flex",
           alignItems: "center",
-          gap: 4,
+          gap: 6,
+          minWidth: 80,
+          backgroundColor: selected.length > 0 ? colors.overlay : "transparent",
         }}
       >
-        {label}
-        {selected.length > 0 && (
-          <span
-            style={{
-              backgroundColor: colors.accent,
-              color: colors.surface,
-              borderRadius: 10,
-              padding: "1px 6px",
-              fontSize: 10,
-            }}
-          >
-            {selected.length}
-          </span>
-        )}
+        {displayText}
+        <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
       </button>
-      {open && (
+      {isOpen && (
         <div
           style={{
             position: "absolute",
             top: "100%",
             left: 0,
             marginTop: 4,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.surfaceRaised,
             border: `1px solid ${colors.border}`,
-            borderRadius: radius.sm,
-            padding: 8,
+            borderRadius: radius.md,
+            padding: 4,
             zIndex: 100,
-            minWidth: 120,
+            minWidth: 140,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
           }}
         >
           {options.map((opt) => (
             <label
-              key={opt}
+              key={String(opt)}
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                padding: "4px 0",
+                padding: "6px 8px",
                 cursor: "pointer",
-                fontSize: 12,
+                borderRadius: radius.sm,
+                fontSize: 13,
                 color: colors.textPrimary,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.overlay;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
               <input
                 type="checkbox"
                 checked={selected.includes(opt)}
                 onChange={() => toggleOption(opt)}
+                style={{ accentColor: colors.accent }}
               />
-              {renderOption ? renderOption(opt) : opt}
+              {renderOption ? renderOption(opt) : String(opt)}
             </label>
           ))}
         </div>
