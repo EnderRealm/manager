@@ -1,7 +1,8 @@
 ---
+parent: m-cbb3
 id: m-0eca
 status: open
-deps: [m-cbb3]
+deps: []
 links: []
 created: 2026-01-24T19:45:39Z
 type: feature
