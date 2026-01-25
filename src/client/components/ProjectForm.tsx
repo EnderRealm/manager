@@ -96,7 +96,14 @@ export function ProjectForm({
         {isEditMode ? "edit project" : "add project"}
       </h1>
 
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+            e.preventDefault();
+          }
+        }}
+      >
         <div style={fieldStyle}>
           <label style={labelStyle}>
             name <span style={{ color: colors.danger }}>*</span>

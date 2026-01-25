@@ -172,7 +172,14 @@ export function ServiceForm({
         {isEditMode ? "Edit Service" : "Add Service"}
       </h1>
 
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+            e.preventDefault();
+          }
+        }}
+      >
         <div style={fieldStyle}>
           <label style={labelStyle}>
             Name <span style={{ color: colors.danger }}>*</span>

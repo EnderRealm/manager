@@ -101,7 +101,14 @@ export function TicketFormContent({
         New Ticket
       </h1>
 
-      <form onSubmit={handleSubmit}>
+      <form
+        onSubmit={handleSubmit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+            e.preventDefault();
+          }
+        }}
+      >
         <div style={{ marginBottom: "16px" }}>
           <label style={labelStyle}>
             Title <span style={{ color: colors.danger }}>*</span>
