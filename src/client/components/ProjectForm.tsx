@@ -113,6 +113,7 @@ export function ProjectForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isEditMode}
+            autoFocus={!isEditMode}
             placeholder="my-project"
             style={{
               ...inputStyle,

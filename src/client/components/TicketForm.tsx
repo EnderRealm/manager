@@ -117,6 +117,7 @@ export function TicketFormContent({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            autoFocus
             style={{
               ...inputStyle,
               borderColor: errors.title ? colors.danger : colors.border,
