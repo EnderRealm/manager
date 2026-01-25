@@ -16,7 +16,9 @@ import {
   clearParent,
   updatePriority,
   deleteTicket,
+  updateTicket,
   type CreateTicketInput,
+  type UpdateTicketInput,
 } from "../services/tk.ts";
 
 const tickets = new Hono();
@@ -111,21 +113,9 @@ tickets.patch("/projects/:id/tickets/:ticketId", async (c) => {
     return c.json({ error: "Ticket not found" }, 404);
   }
 
-  const body = await c.req.json<{ status?: string; priority?: number }>();
+  const body = await c.req.json<UpdateTicketInput>();
 
-  if (body.status) {
-    if (body.status === "in_progress") {
-      await startTicket(projectPath, ticketId);
-    } else if (body.status === "closed") {
-      await closeTicket(projectPath, ticketId);
-    } else if (body.status === "open") {
-      await reopenTicket(projectPath, ticketId);
-    }
-  }
-
-  if (body.priority !== undefined) {
-    await updatePriority(projectPath, ticketId, body.priority);
-  }
+  await updateTicket(projectPath, ticketId, body);
 
   const updated = await getTicket(projectPath, ticketId);
   return c.json(updated);

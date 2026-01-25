@@ -402,3 +402,53 @@ export async function deleteTicket(
 ): Promise<void> {
   await execTk(projectPath, ["delete", ticketId]);
 }
+
+export interface UpdateTicketInput {
+  title?: string;
+  description?: string;
+  design?: string;
+  acceptanceCriteria?: string;
+  status?: string;
+  type?: string;
+  priority?: number;
+  assignee?: string;
+  parent?: string;
+}
+
+export async function updateTicket(
+  projectPath: string,
+  ticketId: string,
+  input: UpdateTicketInput
+): Promise<void> {
+  const args = ["edit", ticketId];
+
+  if (input.title) {
+    args.push("--title", input.title);
+  }
+  if (input.description !== undefined) {
+    args.push("--description", input.description);
+  }
+  if (input.design !== undefined) {
+    args.push("--design", input.design);
+  }
+  if (input.acceptanceCriteria !== undefined) {
+    args.push("--acceptance", input.acceptanceCriteria);
+  }
+  if (input.status) {
+    args.push("--status", input.status);
+  }
+  if (input.type) {
+    args.push("--type", input.type);
+  }
+  if (input.priority !== undefined) {
+    args.push("--priority", String(input.priority));
+  }
+  if (input.assignee !== undefined) {
+    args.push("--assignee", input.assignee);
+  }
+  if (input.parent !== undefined) {
+    args.push("--parent", input.parent);
+  }
+
+  await execTk(projectPath, args);
+}

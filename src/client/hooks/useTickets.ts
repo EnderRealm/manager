@@ -93,6 +93,18 @@ export interface CreateTicketInput {
   parent?: string;
 }
 
+export interface UpdateTicketInput {
+  title?: string;
+  description?: string;
+  design?: string;
+  acceptanceCriteria?: string;
+  status?: string;
+  type?: string;
+  priority?: number;
+  assignee?: string;
+  parent?: string;
+}
+
 async function createTicket(
   projectId: string,
   input: CreateTicketInput
@@ -241,6 +253,25 @@ async function deleteTicketApi(
   }
 }
 
+async function updateTicketApi(
+  projectId: string,
+  ticketId: string,
+  input: UpdateTicketInput
+): Promise<Ticket> {
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to update ticket");
+  }
+  return res.json();
+}
+
 export function useTicketMutations(projectId: string) {
   const queryClient = useQueryClient();
 
@@ -320,6 +351,12 @@ export function useTicketMutations(projectId: string) {
     onSuccess: () => invalidateTickets(),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ ticketId, input }: { ticketId: string; input: UpdateTicketInput }) =>
+      updateTicketApi(projectId, ticketId, input),
+    onSuccess: (_data, { ticketId }) => invalidateTickets(ticketId),
+  });
+
   // Track which tickets are currently being mutated
   const pendingTicketIds = new Set<string>();
   if (startMutation.isPending && startMutation.variables) {
@@ -342,6 +379,8 @@ export function useTicketMutations(projectId: string) {
     clearParent: clearParentMutation.mutate,
     updatePriority: updatePriorityMutation.mutate,
     deleteTicket: deleteMutation.mutate,
+    updateTicket: updateMutation.mutate,
+    isUpdating: updateMutation.isPending,
     isLoading:
       startMutation.isPending ||
       closeMutation.isPending ||
@@ -351,7 +390,8 @@ export function useTicketMutations(projectId: string) {
       setParentMutation.isPending ||
       clearParentMutation.isPending ||
       updatePriorityMutation.isPending ||
-      deleteMutation.isPending,
+      deleteMutation.isPending ||
+      updateMutation.isPending,
     pendingTicketIds,
   };
 }

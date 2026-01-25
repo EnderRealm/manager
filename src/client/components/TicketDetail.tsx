@@ -4,6 +4,7 @@ import { useTicket, useTicketMutations, useAllTickets, type Ticket } from "../ho
 import { colors, fonts, radius, typeColors, statusColors } from "../theme.ts";
 import { AgentRunPanel } from "./AgentRunPanel.tsx";
 import { TicketSummaryById } from "./TicketSummary.tsx";
+import { TicketEditForm } from "./TicketEditForm.tsx";
 
 type TabId = "detail" | "raw";
 
@@ -275,6 +276,7 @@ export function TicketDetailContent({
   const { start, close, reopen } = useTicketMutations(projectId);
   const [activeTab, setActiveTab] = useState<TabId>("detail");
   const [showAgentPanel, setShowAgentPanel] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const actionButtonStyle = {
     padding: "8px 16px",
@@ -300,6 +302,17 @@ export function TicketDetailContent({
       <div style={{ padding: 24, color: colors.danger }}>
         Error loading ticket
       </div>
+    );
+  }
+
+  if (isEditing) {
+    return (
+      <TicketEditForm
+        projectId={projectId}
+        ticket={ticket}
+        onSuccess={() => setIsEditing(false)}
+        onCancel={() => setIsEditing(false)}
+      />
     );
   }
 
@@ -546,6 +559,9 @@ export function TicketDetailContent({
       )}
 
       <div style={{ marginTop: 24, display: "flex", gap: 8 }}>
+        <button onClick={() => setIsEditing(true)} style={actionButtonStyle}>
+          Edit
+        </button>
         {ticket.status === "open" && (
           <button onClick={() => start(ticket.id)} style={actionButtonStyle}>
             Start
