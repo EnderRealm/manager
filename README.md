@@ -1,23 +1,85 @@
-# manager
+# Manager
+
+A developer-focused project management dashboard for monitoring codebases, managing tickets, and running services.
+
+## Features
+
+- **Project Dashboard** - Overview of managed projects with git status, language breakdown, and ticket counts
+- **Kanban Board** - Drag-and-drop ticket management with dependency visualization
+- **Table View** - Sortable/filterable ticket list
+- **Service Manager** - Start/stop/restart tmux-based services with live stats (uptime, memory, CPU)
+- **Claude Agent Integration** - Run tickets through Claude Code with permission handling
+
+## Tech Stack
+
+- **Frontend**: React, Vite, TanStack Query
+- **Backend**: Hono (Bun)
+- **Fonts**: Geist / Geist Mono
+- **Services**: tmux session management
+- **Tickets**: Markdown files in `.tickets/`, managed via `tk` CLI
 
 ## Setup
 
 ```bash
-cp .example.env .env
-# Edit .env with your values
+bun install
 ```
 
 ## Development
 
 ```bash
-# Install dependencies
-bun install
-
-# Start the API server (runs on port 3000)
-bun run src/server/index.ts
-
-# In a separate terminal, start the Vite dev server
-bunx vite
+./bootstrap.sh
 ```
 
-The Vite dev server proxies `/api` requests to the backend automatically.
+This starts the API server and Vite dev server in tmux sessions that Manager can adopt once running.
+
+- **API Server**: http://localhost:3000
+- **Web UI**: http://localhost:5173
+
+To stop:
+```bash
+tmux kill-session -t mgr-Manager-server
+tmux kill-session -t mgr-Manager-web
+```
+
+## Ticket System
+
+Tickets are stored as markdown in `.tickets/`. Use the `tk` CLI:
+
+```bash
+tk create "Title" -t feature -p 2    # create ticket
+tk ls                                 # list all
+tk ready                              # unblocked tickets
+tk show <id>                          # view details
+tk start <id>                         # mark in_progress
+tk close <id>                         # close ticket
+tk help                               # full command list
+```
+
+### Ticket Types
+
+| Type | Use for |
+|------|---------|
+| `bug` | Fixing something broken |
+| `feature` | New functionality or UX improvements |
+| `task` | Investigation or non-code work |
+| `epic` | Large feature with multiple steps |
+| `chore` | Tech debt, refactoring, cleanup |
+
+### Commit Convention
+
+Include ticket ID in commit messages:
+```
+Fix login validation (m-1234)
+```
+
+## Adding Projects
+
+Click "+ add project" on the Projects page:
+- **Name**: Identifier (alphanumeric, dashes, underscores)
+- **Path**: Absolute path to project root
+
+## Service Management
+
+Services run in tmux with naming: `mgr-<project>-<service-id>`.
+
+Service IDs are auto-generated from names ("API Server" → `api-server`), enabling orphan adoption if you manually start a matching tmux session.
