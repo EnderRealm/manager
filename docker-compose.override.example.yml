@@ -1,0 +1,9 @@
+# User-specific overrides
+# Copy this file to docker-compose.override.yml and customize
+
+services:
+  dev:
+    volumes:
+      # Mount your projects directory for ticket access
+      # Use the same path inside/outside so config.json paths work
+      - /path/to/your/projects:/path/to/your/projects

@@ -31,6 +31,7 @@ export interface Config {
 
 const configPath =
   process.env.CONFIG_PATH || path.join(process.cwd(), "config.json");
+const exampleConfigPath = path.join(process.cwd(), "config.example.json");
 
 function validateAndNormalizeServices(
   projectName: string,
@@ -106,10 +107,13 @@ function validateAndNormalizeServices(
 
 export function loadConfig(): Config {
   if (!fs.existsSync(configPath)) {
-    logger.info({ path: configPath }, "Config file not found, creating empty config");
-    const emptyConfig: Config = { projects: [] };
-    fs.writeFileSync(configPath, JSON.stringify(emptyConfig, null, 2) + "\n");
-    return emptyConfig;
+    logger.info({ path: configPath }, "Config file not found, copying from example");
+    if (fs.existsSync(exampleConfigPath)) {
+      fs.copyFileSync(exampleConfigPath, configPath);
+    } else {
+      const emptyConfig: Config = { projects: [] };
+      fs.writeFileSync(configPath, JSON.stringify(emptyConfig, null, 2) + "\n");
+    }
   }
 
   const raw = fs.readFileSync(configPath, "utf-8");

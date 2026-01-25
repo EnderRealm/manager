@@ -1,0 +1,29 @@
+FROM oven/bun:1-alpine
+
+# Install tk dependencies (bash is included in alpine, add remaining tools)
+RUN apk add --no-cache bash ripgrep jq coreutils git
+
+# Install tk CLI
+RUN git clone --depth 1 https://github.com/EnderRealm/ticket.git /opt/ticket && \
+    ln -s /opt/ticket/ticket /usr/local/bin/tk
+
+# Security: run as non-root user
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+WORKDIR /app
+
+# Copy package files first (for layer caching)
+COPY --chown=appuser:appgroup package.json bun.lock ./
+
+# Install dependencies
+RUN bun install --frozen-lockfile && \
+    chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
+EXPOSE 3000 5173
+
+# Default: run both server and client
+CMD ["sh", "-c", "bun run src/server/index.ts & bun run vite --host 0.0.0.0"]
