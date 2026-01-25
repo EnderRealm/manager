@@ -146,7 +146,7 @@ function FilterDropdown({
 export function TableView() {
   const { id: projectId } = useParams<{ id: string }>();
   const { data: tickets } = useAllTickets(projectId!);
-  const { start, close, reopen, updatePriority, deleteTicket } = useTicketMutations(projectId!);
+  const { start, close, reopen, updatePriority, deleteTicket, removeDep } = useTicketMutations(projectId!);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [sort, setSort] = useState<SortConfig>({ field: "priority", direction: "asc" });
@@ -243,6 +243,11 @@ export function TableView() {
   const handleContextMenuAddDependency = () => {
     if (!contextMenu) return;
     setSelectedTicketId(contextMenu.ticket.id);
+  };
+
+  const handleContextMenuRemoveDependency = (blockerId: string) => {
+    if (!contextMenu) return;
+    removeDep({ ticketId: contextMenu.ticket.id, blockerId });
   };
 
   const handleContextMenuDelete = () => {
@@ -417,6 +422,7 @@ export function TableView() {
           onChangeStatus={handleContextMenuChangeStatus}
           onChangePriority={handleContextMenuChangePriority}
           onAddDependency={handleContextMenuAddDependency}
+          onRemoveDependency={handleContextMenuRemoveDependency}
           onDelete={handleContextMenuDelete}
         />
       )}

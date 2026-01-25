@@ -476,6 +476,11 @@ export function KanbanBoard() {
     setSelectedTicketId(contextMenu.ticket.id);
   };
 
+  const handleContextMenuRemoveDependency = (blockerId: string) => {
+    if (!contextMenu) return;
+    removeDep({ ticketId: contextMenu.ticket.id, blockerId });
+  };
+
   const handleContextMenuDelete = () => {
     if (!contextMenu) return;
     setDeleteConfirm(contextMenu.ticket);
@@ -1094,6 +1099,7 @@ export function KanbanBoard() {
           onChangeStatus={handleContextMenuChangeStatus}
           onChangePriority={handleContextMenuChangePriority}
           onAddDependency={handleContextMenuAddDependency}
+          onRemoveDependency={handleContextMenuRemoveDependency}
           onDelete={handleContextMenuDelete}
         />
       )}

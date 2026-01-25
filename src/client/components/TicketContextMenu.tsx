@@ -12,6 +12,7 @@ interface TicketContextMenuProps {
   onChangeStatus: (status: "open" | "in_progress" | "closed") => void;
   onChangePriority: (priority: number) => void;
   onAddDependency: () => void;
+  onRemoveDependency: (blockerId: string) => void;
   onDelete: () => void;
 }
 
@@ -23,10 +24,12 @@ export function TicketContextMenu({
   onChangeStatus,
   onChangePriority,
   onAddDependency,
+  onRemoveDependency,
   onDelete,
 }: TicketContextMenuProps) {
   const [statusSubmenu, setStatusSubmenu] = useState(false);
   const [prioritySubmenu, setPrioritySubmenu] = useState(false);
+  const [removeDepSubmenu, setRemoveDepSubmenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -163,6 +166,34 @@ export function TicketContextMenu({
       >
         Add Dependency...
       </MenuItem>
+
+      {/* Remove Dependency submenu - only show if ticket has deps */}
+      {ticket.deps.length > 0 && (
+        <div
+          style={{ position: "relative" }}
+          onMouseEnter={() => setRemoveDepSubmenu(true)}
+          onMouseLeave={() => setRemoveDepSubmenu(false)}
+        >
+          <MenuItem hasSubmenu>
+            Remove Dependency
+          </MenuItem>
+          {removeDepSubmenu && (
+            <Submenu>
+              {ticket.deps.map((depId) => (
+                <MenuItem
+                  key={depId}
+                  onClick={() => {
+                    onRemoveDependency(depId);
+                    onClose();
+                  }}
+                >
+                  {depId}
+                </MenuItem>
+              ))}
+            </Submenu>
+          )}
+        </div>
+      )}
 
       <Separator />
 
