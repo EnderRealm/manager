@@ -468,6 +468,39 @@ export function TicketDetailContent({
             />
           </Section>
 
+          <Section title="Blocks">
+            {(() => {
+              const blockedTickets = (allTickets ?? []).filter((t) =>
+                t.deps.includes(ticket.id)
+              );
+              if (blockedTickets.length === 0) {
+                return (
+                  <p style={{ margin: 0, color: colors.textMuted, fontStyle: "italic" }}>
+                    No tickets blocked by this
+                  </p>
+                );
+              }
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {blockedTickets.map((blocked) => (
+                    <TicketSummaryById
+                      key={blocked.id}
+                      ticketId={blocked.id}
+                      allTickets={allTickets ?? []}
+                      projectId={projectId}
+                      onClick={(e) => {
+                        if (onTicketClick) {
+                          e.preventDefault();
+                          onTicketClick(blocked.id);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+          </Section>
+
           <Section title="Children">
             {ticket.children && ticket.children.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

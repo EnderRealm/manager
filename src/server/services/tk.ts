@@ -380,3 +380,11 @@ export async function removeDependency(
   // tk undep <child> <parent> removes the dependency
   await execTk(projectPath, ["undep", childId, parentId]);
 }
+
+export async function setParent(
+  projectPath: string,
+  ticketId: string,
+  parentId: string
+): Promise<void> {
+  await execTk(projectPath, ["edit", ticketId, "--parent", parentId]);
+}

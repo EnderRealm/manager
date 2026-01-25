@@ -12,6 +12,7 @@ import {
   reopenTicket,
   addDependency,
   removeDependency,
+  setParent,
   type CreateTicketInput,
 } from "../services/tk.ts";
 
@@ -190,6 +191,25 @@ tickets.delete("/projects/:id/tickets/:ticketId/deps/:blockerId", async (c) => {
   const blockerId = c.req.param("blockerId");
 
   await removeDependency(projectPath, ticketId, blockerId);
+  const ticket = await getTicket(projectPath, ticketId);
+
+  return c.json(ticket);
+});
+
+tickets.post("/projects/:id/tickets/:ticketId/parent", async (c) => {
+  const projectPath = getProjectPath(c.req.param("id"));
+  if (!projectPath) {
+    return c.json({ error: "Project not found" }, 404);
+  }
+
+  const ticketId = c.req.param("ticketId");
+  const body = await c.req.json<{ parentId: string }>();
+
+  if (!body.parentId) {
+    return c.json({ error: "parentId is required" }, 400);
+  }
+
+  await setParent(projectPath, ticketId, body.parentId);
   const ticket = await getTicket(projectPath, ticketId);
 
   return c.json(ticket);

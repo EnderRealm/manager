@@ -4,12 +4,15 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Ticket } from "../hooks/useTickets.ts";
 import { colors, fonts, radius, typeColors, priorityColors } from "../theme.ts";
 
+export type DropMode = "parent" | "dependency";
+
 interface TicketCardProps {
   ticket: Ticket;
   onClick?: () => void;
   isDragDisabled?: boolean;
   isDropTarget?: boolean;
   isValidDropTarget?: boolean;
+  dropMode?: DropMode;
 }
 
 export function TicketCard({
@@ -18,6 +21,7 @@ export function TicketCard({
   isDragDisabled,
   isDropTarget = false,
   isValidDropTarget = false,
+  dropMode = "parent",
 }: TicketCardProps) {
   const [hovered, setHovered] = useState(false);
 
@@ -131,6 +135,24 @@ export function TicketCard({
           {ticket.title || "(no title)"}
         </div>
       </div>
+
+      {/* Drop mode label */}
+      {showDropHighlight && (
+        <div
+          style={{
+            padding: "6px 10px",
+            backgroundColor: dropMode === "dependency" ? colors.warning : colors.success,
+            color: colors.canvas,
+            fontSize: "11px",
+            fontWeight: 600,
+            textAlign: "center",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
+          {dropMode === "dependency" ? "Add Blocker" : "Set Parent"}
+        </div>
+      )}
     </div>
   );
 }

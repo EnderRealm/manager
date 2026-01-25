@@ -5,6 +5,7 @@ import { DependentCard } from "./DependentCard.tsx";
 import { colors, fonts, radius } from "../theme.ts";
 
 export type ColumnId = "in_progress" | "ready" | "blocked" | "closed";
+export type DropMode = "parent" | "dependency";
 
 interface KanbanColumnProps {
   id: ColumnId;
@@ -17,6 +18,7 @@ interface KanbanColumnProps {
   dependencyMap?: Map<string, Ticket[]>;
   showDependents?: boolean;
   getIsValidCardDrop?: (cardId: string) => boolean;
+  dropMode?: DropMode;
 }
 
 export function KanbanColumn({
@@ -30,6 +32,7 @@ export function KanbanColumn({
   dependencyMap,
   showDependents = false,
   getIsValidCardDrop,
+  dropMode = "parent",
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -108,6 +111,7 @@ export function KanbanColumn({
                 onClick={onTicketClick ? () => onTicketClick(ticket.id) : undefined}
                 isDropTarget={!!isDragging}
                 isValidDropTarget={isValidCardTarget}
+                dropMode={dropMode}
               />
               {dependents.map((dep) => (
                 <DependentCard

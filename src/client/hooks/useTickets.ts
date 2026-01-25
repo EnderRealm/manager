@@ -176,6 +176,25 @@ async function removeDependency(
   return res.json();
 }
 
+async function setParentApi(
+  projectId: string,
+  ticketId: string,
+  parentId: string
+): Promise<Ticket> {
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}/parent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parentId }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to set parent");
+  }
+  return res.json();
+}
+
 export function useTicketMutations(projectId: string) {
   const queryClient = useQueryClient();
 
@@ -225,6 +244,15 @@ export function useTicketMutations(projectId: string) {
     },
   });
 
+  const setParentMutation = useMutation({
+    mutationFn: ({ ticketId, parentId }: { ticketId: string; parentId: string }) =>
+      setParentApi(projectId, ticketId, parentId),
+    onSuccess: (_data, { ticketId, parentId }) => {
+      invalidateTickets(ticketId);
+      invalidateTickets(parentId);
+    },
+  });
+
   // Track which tickets are currently being mutated
   const pendingTicketIds = new Set<string>();
   if (startMutation.isPending && startMutation.variables) {
@@ -243,12 +271,14 @@ export function useTicketMutations(projectId: string) {
     reopen: reopenMutation.mutate,
     addDep: addDepMutation.mutate,
     removeDep: removeDepMutation.mutate,
+    setParent: setParentMutation.mutate,
     isLoading:
       startMutation.isPending ||
       closeMutation.isPending ||
       reopenMutation.isPending ||
       addDepMutation.isPending ||
-      removeDepMutation.isPending,
+      removeDepMutation.isPending ||
+      setParentMutation.isPending,
     pendingTicketIds,
   };
 }

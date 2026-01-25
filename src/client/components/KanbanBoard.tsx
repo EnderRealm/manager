@@ -245,7 +245,7 @@ export function KanbanBoard() {
   const { data: readyTickets } = useReadyTickets(projectId!);
   const { data: blockedTickets } = useBlockedTickets(projectId!);
   const { data: closedTickets } = useClosedTickets(projectId!);
-  const { start, close, reopen, addDep, removeDep } = useTicketMutations(projectId!);
+  const { start, close, reopen, addDep, removeDep, setParent } = useTicketMutations(projectId!);
 
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
   const [overColumn, setOverColumn] = useState<ColumnId | null>(null);
@@ -255,8 +255,25 @@ export function KanbanBoard() {
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [activeTab, setActiveTab] = useState<ColumnId>("in_progress");
   const [filters, setFilters] = useState<Filters>({ types: [], priorities: [], assignees: [] });
+  const [isShiftHeld, setIsShiftHeld] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
   const restrictToBoard = createRestrictToContainer(boardRef);
+
+  // Track shift key for dependency mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Shift") setIsShiftHeld(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Shift") setIsShiftHeld(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   // Derive available assignees from ticket data
   const availableAssignees = [...new Set(
@@ -299,15 +316,26 @@ export function KanbanBoard() {
   const filteredClosedTickets = applyFilters(filterHidden(closedTickets ?? []));
 
   // Build dependency map: blockerId -> [tickets that depend on it]
-  // A ticket's deps array contains IDs of tickets that block it
+  // Includes both deps (blocking) and parent-child relationships
   const dependencyMap = new Map<string, Ticket[]>();
   const allTicketsList = allTickets ?? [];
 
   for (const ticket of allTicketsList) {
+    // Add blocking dependencies
     for (const blockerId of ticket.deps) {
       const existing = dependencyMap.get(blockerId) || [];
       existing.push(ticket);
       dependencyMap.set(blockerId, existing);
+    }
+
+    // Add parent-child relationship (show children under their parent)
+    if (ticket.parent) {
+      const existing = dependencyMap.get(ticket.parent) || [];
+      // Avoid duplicates if ticket both depends on and is child of same parent
+      if (!existing.some((t) => t.id === ticket.id)) {
+        existing.push(ticket);
+        dependencyMap.set(ticket.parent, existing);
+      }
     }
   }
 
@@ -329,7 +357,7 @@ export function KanbanBoard() {
 
   // Check if adding a dependency would create a cycle
   // Returns true if adding childId -> blockerId would create a cycle
-  const wouldCreateCycle = (childId: string, blockerId: string): boolean => {
+  const wouldCreateDepCycle = (childId: string, blockerId: string): boolean => {
     // If blocker already depends on child (directly or transitively), adding child -> blocker creates cycle
     const visited = new Set<string>();
     const toVisit = [blockerId];
@@ -350,12 +378,43 @@ export function KanbanBoard() {
     return false;
   };
 
-  // Check if dropping childId onto blockerId is valid (no cycle, not same ticket, not already a dep)
-  const isValidCardDrop = (childId: string, blockerId: string): boolean => {
-    if (childId === blockerId) return false;
+  // Check if setting parent would create an ancestry cycle
+  // Returns true if targetId is already a descendant of sourceId (via parent chain)
+  const wouldCreateParentCycle = (sourceId: string, targetId: string): boolean => {
+    // Walk up the parent chain from target - if we hit source, it would create a cycle
+    const visited = new Set<string>();
+    let current = targetId;
+
+    while (current) {
+      if (current === sourceId) return true;
+      if (visited.has(current)) return false; // Already visited, no cycle to source
+      visited.add(current);
+
+      const ticket = allTicketsList.find((t) => t.id === current);
+      if (!ticket?.parent) break;
+      current = ticket.parent;
+    }
+    return false;
+  };
+
+  // Check if dropping childId onto targetId is valid
+  // For parent mode: check ancestry cycle
+  // For dependency mode: check dep cycle and existing dep
+  const isValidCardDrop = (childId: string, targetId: string): boolean => {
+    if (childId === targetId) return false;
+
     const child = allTicketsList.find((t) => t.id === childId);
-    if (child?.deps.includes(blockerId)) return false; // Already a dependency
-    return !wouldCreateCycle(childId, blockerId);
+    if (!child) return false;
+
+    if (isShiftHeld) {
+      // Dependency mode: check if already a dep or would create cycle
+      if (child.deps.includes(targetId)) return false;
+      return !wouldCreateDepCycle(childId, targetId);
+    } else {
+      // Parent mode: check if already the parent or would create ancestry cycle
+      if (child.parent === targetId) return false;
+      return !wouldCreateParentCycle(childId, targetId);
+    }
   };
 
   const sensors = useSensors(
@@ -411,14 +470,23 @@ export function KanbanBoard() {
     const isDependent = activeData?.isDependent as boolean | undefined;
     const parentId = activeData?.parentId as string | undefined;
 
-    // Check if dropped on a card (add dependency)
+    // Check if dropped on a card (set parent or add dependency)
     if (overData?.isCard && overData?.ticket) {
       const targetTicket = overData.ticket as Ticket;
       if (isValidCardDrop(ticket.id, targetTicket.id)) {
-        // Hide ticket and add dependency
         setDroppedTicketId(ticket.id);
         setTimeout(() => setDroppedTicketId(null), 500);
-        addDep({ ticketId: ticket.id, blockerId: targetTicket.id });
+        if (isShiftHeld) {
+          // Shift+drag: add dependency
+          addDep({ ticketId: ticket.id, blockerId: targetTicket.id });
+        } else {
+          // Regular drag: set parent
+          // Remove any existing dependency - parent relationship subsumes it
+          if (ticket.deps.includes(targetTicket.id)) {
+            removeDep({ ticketId: ticket.id, blockerId: targetTicket.id });
+          }
+          setParent({ ticketId: ticket.id, parentId: targetTicket.id });
+        }
       }
       return;
     }
@@ -837,6 +905,7 @@ export function KanbanBoard() {
             dependencyMap={dependencyMap}
             showDependents={true}
             getIsValidCardDrop={getIsValidCardDrop}
+            dropMode={isShiftHeld ? "dependency" : "parent"}
           />
           <KanbanColumn
             id="ready"
@@ -849,6 +918,7 @@ export function KanbanBoard() {
             dependencyMap={dependencyMap}
             showDependents={true}
             getIsValidCardDrop={getIsValidCardDrop}
+            dropMode={isShiftHeld ? "dependency" : "parent"}
           />
           <KanbanColumn
             id="blocked"
@@ -859,6 +929,7 @@ export function KanbanBoard() {
             isValidDrop={getIsValidDrop("blocked")}
             isDragging={!!activeTicket}
             getIsValidCardDrop={getIsValidCardDrop}
+            dropMode={isShiftHeld ? "dependency" : "parent"}
           />
           <KanbanColumn
             id="closed"
@@ -871,6 +942,7 @@ export function KanbanBoard() {
             dependencyMap={dependencyMap}
             showDependents={true}
             getIsValidCardDrop={getIsValidCardDrop}
+            dropMode={isShiftHeld ? "dependency" : "parent"}
           />
         </div>
 
