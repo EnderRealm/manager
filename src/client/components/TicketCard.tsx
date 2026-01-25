@@ -91,6 +91,30 @@ export function TicketCard({
       {...listeners}
       {...attributes}
     >
+      {/* Drop mode label */}
+      {showDropHighlight && (
+        <div
+          style={{
+            padding: "6px 10px",
+            backgroundColor: dropMode === "dependency" ? colors.warning : colors.success,
+            color: colors.canvas,
+            fontSize: "11px",
+            fontWeight: 600,
+            textAlign: "center",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
+          {dropMode === "dependency" ? "Add Blocker" : "Set Parent"}
+        </div>
+      )}
+
+      <div style={{ padding: "10px 12px" }}>
+        <div style={{ fontWeight: 500, color: colors.textPrimary }}>
+          {ticket.title || "(no title)"}
+        </div>
+      </div>
+
       <div
         style={{
           display: "flex",
@@ -98,7 +122,7 @@ export function TicketCard({
           alignItems: "center",
           padding: "6px 10px",
           backgroundColor: colors.canvas,
-          borderBottom: `1px solid ${colors.border}`,
+          borderTop: `1px solid ${colors.border}`,
         }}
       >
         <span style={{ color: colors.textMuted, fontSize: "11px", fontFamily: fonts.mono, flex: 1 }}>
@@ -129,30 +153,6 @@ export function TicketCard({
           P{ticket.priority}
         </span>
       </div>
-
-      <div style={{ padding: "10px 12px" }}>
-        <div style={{ fontWeight: 500, color: colors.textPrimary }}>
-          {ticket.title || "(no title)"}
-        </div>
-      </div>
-
-      {/* Drop mode label */}
-      {showDropHighlight && (
-        <div
-          style={{
-            padding: "6px 10px",
-            backgroundColor: dropMode === "dependency" ? colors.warning : colors.success,
-            color: colors.canvas,
-            fontSize: "11px",
-            fontWeight: 600,
-            textAlign: "center",
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-          }}
-        >
-          {dropMode === "dependency" ? "Add Blocker" : "Set Parent"}
-        </div>
-      )}
     </div>
   );
 }

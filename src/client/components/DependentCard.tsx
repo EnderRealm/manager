@@ -30,12 +30,15 @@ export function DependentCard({
       disabled: isDragDisabled,
     });
 
+  const isDependency = relationshipType === "dependency";
+  const leftBorderColor = priorityColors[ticket.priority] ?? colors.textMuted;
+
   const style = {
     marginLeft: "16px",
     borderTop: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
     borderRight: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
     borderBottom: `1px solid ${hovered ? colors.accent : colors.borderMuted}`,
-    borderLeft: `3px solid ${priorityColors[ticket.priority] ?? colors.textMuted}`,
+    borderLeft: `3px ${isDependency ? "dashed" : "solid"} ${leftBorderColor}`,
     borderRadius: radius.md,
     marginBottom: "8px",
     backgroundColor: hovered ? colors.overlay : colors.surface,
@@ -58,45 +61,6 @@ export function DependentCard({
       {...listeners}
       {...attributes}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "4px 8px",
-          backgroundColor: colors.canvas,
-          borderBottom: `1px solid ${colors.border}`,
-        }}
-      >
-        <span style={{ color: colors.textMuted, fontSize: "10px", fontFamily: fonts.mono, flex: 1 }}>
-          {ticket.id}
-        </span>
-        <span
-          style={{
-            color: typeColors[ticket.type] ?? colors.textMuted,
-            fontSize: "9px",
-            textTransform: "uppercase",
-            fontWeight: 600,
-            letterSpacing: "0.5px",
-            flex: 1,
-            textAlign: "center",
-          }}
-        >
-          {ticket.type}
-        </span>
-        <span
-          style={{
-            color: priorityColors[ticket.priority] ?? colors.textMuted,
-            fontSize: "10px",
-            fontWeight: 600,
-            flex: 1,
-            textAlign: "right",
-          }}
-        >
-          P{ticket.priority}
-        </span>
-      </div>
-
       <div style={{ padding: "6px 8px" }}>
         <div
           style={{
@@ -110,6 +74,61 @@ export function DependentCard({
         >
           {ticket.title || "(no title)"}
         </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "4px 8px",
+          backgroundColor: colors.canvas,
+          borderTop: `1px solid ${colors.border}`,
+        }}
+      >
+        <span style={{ color: colors.textMuted, fontSize: "10px", fontFamily: fonts.mono, flex: 1 }}>
+          {ticket.id}
+        </span>
+        {isDependency ? (
+          <span
+            style={{
+              color: colors.warning,
+              fontSize: "9px",
+              textTransform: "uppercase",
+              fontWeight: 600,
+              letterSpacing: "0.5px",
+              flex: 1,
+              textAlign: "center",
+            }}
+          >
+            ⏳ blocked
+          </span>
+        ) : (
+          <span
+            style={{
+              color: typeColors[ticket.type] ?? colors.textMuted,
+              fontSize: "9px",
+              textTransform: "uppercase",
+              fontWeight: 600,
+              letterSpacing: "0.5px",
+              flex: 1,
+              textAlign: "center",
+            }}
+          >
+            {ticket.type}
+          </span>
+        )}
+        <span
+          style={{
+            color: priorityColors[ticket.priority] ?? colors.textMuted,
+            fontSize: "10px",
+            fontWeight: 600,
+            flex: 1,
+            textAlign: "right",
+          }}
+        >
+          P{ticket.priority}
+        </span>
       </div>
     </div>
   );
