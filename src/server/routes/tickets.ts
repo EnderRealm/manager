@@ -14,6 +14,8 @@ import {
   removeDependency,
   setParent,
   clearParent,
+  updatePriority,
+  deleteTicket,
   type CreateTicketInput,
 } from "../services/tk.ts";
 
@@ -109,7 +111,7 @@ tickets.patch("/projects/:id/tickets/:ticketId", async (c) => {
     return c.json({ error: "Ticket not found" }, 404);
   }
 
-  const body = await c.req.json<{ status?: string }>();
+  const body = await c.req.json<{ status?: string; priority?: number }>();
 
   if (body.status) {
     if (body.status === "in_progress") {
@@ -121,8 +123,28 @@ tickets.patch("/projects/:id/tickets/:ticketId", async (c) => {
     }
   }
 
+  if (body.priority !== undefined) {
+    await updatePriority(projectPath, ticketId, body.priority);
+  }
+
   const updated = await getTicket(projectPath, ticketId);
   return c.json(updated);
+});
+
+tickets.delete("/projects/:id/tickets/:ticketId", async (c) => {
+  const projectPath = getProjectPath(c.req.param("id"));
+  if (!projectPath) {
+    return c.json({ error: "Project not found" }, 404);
+  }
+
+  const ticketId = c.req.param("ticketId");
+  const existing = await getTicket(projectPath, ticketId);
+  if (!existing) {
+    return c.json({ error: "Ticket not found" }, 404);
+  }
+
+  await deleteTicket(projectPath, ticketId);
+  return c.json({ success: true });
 });
 
 tickets.post("/projects/:id/tickets/:ticketId/start", async (c) => {

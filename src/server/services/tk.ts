@@ -387,3 +387,18 @@ export async function clearParent(
 
   writeFileSync(ticketPath, filtered.join("\n"));
 }
+
+export async function updatePriority(
+  projectPath: string,
+  ticketId: string,
+  priority: number
+): Promise<void> {
+  await execTk(projectPath, ["edit", ticketId, "--priority", String(priority)]);
+}
+
+export async function deleteTicket(
+  projectPath: string,
+  ticketId: string
+): Promise<void> {
+  await execTk(projectPath, ["delete", ticketId]);
+}

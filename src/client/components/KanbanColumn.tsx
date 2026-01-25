@@ -14,6 +14,7 @@ interface KanbanColumnProps {
   tickets: Ticket[];
   color: string;
   onTicketClick?: (id: string) => void;
+  onTicketContextMenu?: (e: React.MouseEvent, ticket: Ticket) => void;
   isValidDrop?: boolean;
   isDragging?: boolean;
   dependencyMap?: Map<string, Ticket[]>;
@@ -28,6 +29,7 @@ export function KanbanColumn({
   tickets,
   color,
   onTicketClick,
+  onTicketContextMenu,
   isValidDrop,
   isDragging,
   dependencyMap,
@@ -136,6 +138,7 @@ export function KanbanColumn({
               <TicketCard
                 ticket={ticket}
                 onClick={onTicketClick ? () => onTicketClick(ticket.id) : undefined}
+                onContextMenu={onTicketContextMenu ? (e) => onTicketContextMenu(e, ticket) : undefined}
                 isDropTarget={!!isDragging}
                 isValidDropTarget={isValidCardTarget}
                 dropMode={dropMode}
@@ -155,6 +158,7 @@ export function KanbanColumn({
                     parentId={ticket.id}
                     relationshipType={relationshipType}
                     onClick={onTicketClick ? () => onTicketClick(dep.id) : undefined}
+                    onContextMenu={onTicketContextMenu ? (e) => onTicketContextMenu(e, dep) : undefined}
                   />
                 );
               })}

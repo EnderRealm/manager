@@ -1,9 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useAllTickets, type Ticket } from "../hooks/useTickets.ts";
+import { useAllTickets, useTicketMutations, type Ticket } from "../hooks/useTickets.ts";
 import { TicketDetailContent } from "./TicketDetail.tsx";
 import { SlideOutPanel } from "./SlideOutPanel.tsx";
 import { TicketFormContent } from "./TicketForm.tsx";
+import { TicketContextMenu, useContextMenu } from "./TicketContextMenu.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { colors, fonts, radius, buttonPrimary, buttonSecondary, priorityColors, typeColors } from "../theme.ts";
 
 type SortField = "id" | "title" | "type" | "priority" | "status" | "assignee" | "created";
@@ -144,10 +146,13 @@ function FilterDropdown({
 export function TableView() {
   const { id: projectId } = useParams<{ id: string }>();
   const { data: tickets } = useAllTickets(projectId!);
+  const { start, close, reopen, updatePriority, deleteTicket } = useTicketMutations(projectId!);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [sort, setSort] = useState<SortConfig>({ field: "priority", direction: "asc" });
   const [filters, setFilters] = useState<Filters>({ types: [], priorities: [], assignees: [], statuses: [] });
+  const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
+  const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu();
 
   const availableAssignees = [...new Set(
     (tickets ?? [])
@@ -211,6 +216,44 @@ export function TableView() {
 
   const handleClosePanel = () => {
     setSelectedTicketId(null);
+  };
+
+  const handleContextMenuChangeStatus = (status: "open" | "in_progress" | "closed") => {
+    if (!contextMenu) return;
+    const ticket = contextMenu.ticket;
+    if (status === "in_progress" && ticket.status !== "in_progress") {
+      if (ticket.status === "closed") {
+        reopen(ticket.id);
+        setTimeout(() => start(ticket.id), 100);
+      } else {
+        start(ticket.id);
+      }
+    } else if (status === "closed" && ticket.status !== "closed") {
+      close(ticket.id);
+    } else if (status === "open" && ticket.status !== "open") {
+      reopen(ticket.id);
+    }
+  };
+
+  const handleContextMenuChangePriority = (priority: number) => {
+    if (!contextMenu) return;
+    updatePriority({ ticketId: contextMenu.ticket.id, priority });
+  };
+
+  const handleContextMenuAddDependency = () => {
+    if (!contextMenu) return;
+    setSelectedTicketId(contextMenu.ticket.id);
+  };
+
+  const handleContextMenuDelete = () => {
+    if (!contextMenu) return;
+    setDeleteConfirm(contextMenu.ticket);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+    deleteTicket(deleteConfirm.id);
+    setDeleteConfirm(null);
   };
 
   const getSortIndicator = (field: SortField) => {
@@ -326,6 +369,7 @@ export function TableView() {
                 ticket={ticket}
                 isSelected={selectedTicketId === ticket.id}
                 onClick={() => handleRowClick(ticket.id)}
+                onContextMenu={(e) => handleContextMenu(e, ticket)}
               />
             ))}
             {sortedTickets.length === 0 && (
@@ -363,6 +407,30 @@ export function TableView() {
           onCancel={() => setShowNewTicketForm(false)}
         />
       </SlideOutPanel>
+
+      {contextMenu && (
+        <TicketContextMenu
+          ticket={contextMenu.ticket}
+          position={contextMenu.position}
+          onClose={closeContextMenu}
+          onEdit={handleContextMenuAddDependency}
+          onChangeStatus={handleContextMenuChangeStatus}
+          onChangePriority={handleContextMenuChangePriority}
+          onAddDependency={handleContextMenuAddDependency}
+          onDelete={handleContextMenuDelete}
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title="Delete Ticket"
+        message={deleteConfirm ? `Are you sure you want to delete "${deleteConfirm.title || deleteConfirm.id}"? This cannot be undone.` : ""}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }
@@ -409,10 +477,12 @@ function TableRow({
   ticket,
   isSelected,
   onClick,
+  onContextMenu,
 }: {
   ticket: Ticket;
   isSelected: boolean;
   onClick: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -427,6 +497,7 @@ function TableRow({
   return (
     <tr
       onClick={onClick}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

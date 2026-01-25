@@ -209,6 +209,38 @@ async function clearParentApi(
   return res.json();
 }
 
+async function updatePriorityApi(
+  projectId: string,
+  ticketId: string,
+  priority: number
+): Promise<Ticket> {
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority }),
+    }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to update priority");
+  }
+  return res.json();
+}
+
+async function deleteTicketApi(
+  projectId: string,
+  ticketId: string
+): Promise<void> {
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to delete ticket");
+  }
+}
+
 export function useTicketMutations(projectId: string) {
   const queryClient = useQueryClient();
 
@@ -276,6 +308,18 @@ export function useTicketMutations(projectId: string) {
     },
   });
 
+  const updatePriorityMutation = useMutation({
+    mutationFn: ({ ticketId, priority }: { ticketId: string; priority: number }) =>
+      updatePriorityApi(projectId, ticketId, priority),
+    onSuccess: (_data, { ticketId }) => invalidateTickets(ticketId),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (ticketId: string) =>
+      deleteTicketApi(projectId, ticketId),
+    onSuccess: () => invalidateTickets(),
+  });
+
   // Track which tickets are currently being mutated
   const pendingTicketIds = new Set<string>();
   if (startMutation.isPending && startMutation.variables) {
@@ -296,6 +340,8 @@ export function useTicketMutations(projectId: string) {
     removeDep: removeDepMutation.mutate,
     setParent: setParentMutation.mutate,
     clearParent: clearParentMutation.mutate,
+    updatePriority: updatePriorityMutation.mutate,
+    deleteTicket: deleteMutation.mutate,
     isLoading:
       startMutation.isPending ||
       closeMutation.isPending ||
@@ -303,7 +349,9 @@ export function useTicketMutations(projectId: string) {
       addDepMutation.isPending ||
       removeDepMutation.isPending ||
       setParentMutation.isPending ||
-      clearParentMutation.isPending,
+      clearParentMutation.isPending ||
+      updatePriorityMutation.isPending ||
+      deleteMutation.isPending,
     pendingTicketIds,
   };
 }

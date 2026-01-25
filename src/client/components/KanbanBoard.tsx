@@ -45,6 +45,8 @@ import { DependentCard, type RelationshipType } from "./DependentCard.tsx";
 import { SlideOutPanel } from "./SlideOutPanel.tsx";
 import { TicketDetailContent } from "./TicketDetail.tsx";
 import { TicketFormContent } from "./TicketForm.tsx";
+import { TicketContextMenu, useContextMenu } from "./TicketContextMenu.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { colors, fonts, buttonPrimary, buttonSecondary, radius, inputBase } from "../theme.ts";
 
 // Filter types
@@ -245,7 +247,7 @@ export function KanbanBoard() {
   const { data: readyTickets } = useReadyTickets(projectId!);
   const { data: blockedTickets } = useBlockedTickets(projectId!);
   const { data: closedTickets } = useClosedTickets(projectId!);
-  const { start, close, reopen, addDep, removeDep, setParent, clearParent } = useTicketMutations(projectId!);
+  const { start, close, reopen, addDep, removeDep, setParent, clearParent, updatePriority, deleteTicket } = useTicketMutations(projectId!);
 
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
   const [activeRelationshipType, setActiveRelationshipType] = useState<RelationshipType | null>(null);
@@ -258,6 +260,8 @@ export function KanbanBoard() {
   const [activeTab, setActiveTab] = useState<ColumnId>("in_progress");
   const [filters, setFilters] = useState<Filters>({ types: [], priorities: [], assignees: [] });
   const [isShiftHeld, setIsShiftHeld] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<Ticket | null>(null);
+  const { contextMenu, handleContextMenu, closeContextMenu } = useContextMenu();
   const boardRef = useRef<HTMLDivElement>(null);
   const restrictToBoard = createRestrictToContainer(boardRef);
 
@@ -440,6 +444,44 @@ export function KanbanBoard() {
 
   const handleClosePanel = () => {
     setSelectedTicketId(null);
+  };
+
+  const handleContextMenuChangeStatus = (status: "open" | "in_progress" | "closed") => {
+    if (!contextMenu) return;
+    const ticket = contextMenu.ticket;
+    if (status === "in_progress" && ticket.status !== "in_progress") {
+      if (ticket.status === "closed") {
+        reopen(ticket.id);
+        setTimeout(() => start(ticket.id), 100);
+      } else {
+        start(ticket.id);
+      }
+    } else if (status === "closed" && ticket.status !== "closed") {
+      close(ticket.id);
+    } else if (status === "open" && ticket.status !== "open") {
+      reopen(ticket.id);
+    }
+  };
+
+  const handleContextMenuChangePriority = (priority: number) => {
+    if (!contextMenu) return;
+    updatePriority({ ticketId: contextMenu.ticket.id, priority });
+  };
+
+  const handleContextMenuAddDependency = () => {
+    if (!contextMenu) return;
+    setSelectedTicketId(contextMenu.ticket.id);
+  };
+
+  const handleContextMenuDelete = () => {
+    if (!contextMenu) return;
+    setDeleteConfirm(contextMenu.ticket);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+    deleteTicket(deleteConfirm.id);
+    setDeleteConfirm(null);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -963,6 +1005,7 @@ export function KanbanBoard() {
             tickets={topLevelInProgress}
             color={colors.textSecondary}
             onTicketClick={handleTicketClick}
+            onTicketContextMenu={handleContextMenu}
             isValidDrop={getIsValidDrop("in_progress")}
             isDragging={!!activeTicket}
             dependencyMap={dependencyMap}
@@ -976,6 +1019,7 @@ export function KanbanBoard() {
             tickets={topLevelReady}
             color={colors.textSecondary}
             onTicketClick={handleTicketClick}
+            onTicketContextMenu={handleContextMenu}
             isValidDrop={getIsValidDrop("ready")}
             isDragging={!!activeTicket}
             dependencyMap={dependencyMap}
@@ -989,6 +1033,7 @@ export function KanbanBoard() {
             tickets={filteredBlockedTickets}
             color={colors.textSecondary}
             onTicketClick={handleTicketClick}
+            onTicketContextMenu={handleContextMenu}
             isValidDrop={getIsValidDrop("blocked")}
             isDragging={!!activeTicket}
             getIsValidCardDrop={getIsValidCardDrop}
@@ -1000,6 +1045,7 @@ export function KanbanBoard() {
             tickets={topLevelClosed}
             color={colors.textMuted}
             onTicketClick={handleTicketClick}
+            onTicketContextMenu={handleContextMenu}
             isValidDrop={getIsValidDrop("closed")}
             isDragging={!!activeTicket}
             dependencyMap={dependencyMap}
@@ -1033,6 +1079,30 @@ export function KanbanBoard() {
           onCancel={() => setShowNewTicketForm(false)}
         />
       </SlideOutPanel>
+
+      {contextMenu && (
+        <TicketContextMenu
+          ticket={contextMenu.ticket}
+          position={contextMenu.position}
+          onClose={closeContextMenu}
+          onEdit={handleContextMenuAddDependency}
+          onChangeStatus={handleContextMenuChangeStatus}
+          onChangePriority={handleContextMenuChangePriority}
+          onAddDependency={handleContextMenuAddDependency}
+          onDelete={handleContextMenuDelete}
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title="Delete Ticket"
+        message={deleteConfirm ? `Are you sure you want to delete "${deleteConfirm.title || deleteConfirm.id}"? This cannot be undone.` : ""}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

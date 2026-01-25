@@ -11,6 +11,7 @@ interface DependentCardProps {
   parentId: string;
   relationshipType?: RelationshipType;
   onClick?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   isDragDisabled?: boolean;
 }
 
@@ -19,6 +20,7 @@ export function DependentCard({
   parentId,
   relationshipType = "dependency",
   onClick,
+  onContextMenu,
   isDragDisabled,
 }: DependentCardProps) {
   const [hovered, setHovered] = useState(false);
@@ -55,6 +57,7 @@ export function DependentCard({
     <div
       ref={setNodeRef}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={style}

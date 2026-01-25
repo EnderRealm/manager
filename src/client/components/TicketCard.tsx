@@ -9,6 +9,7 @@ export type DropMode = "parent" | "dependency";
 interface TicketCardProps {
   ticket: Ticket;
   onClick?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   isDragDisabled?: boolean;
   isDropTarget?: boolean;
   isValidDropTarget?: boolean;
@@ -23,6 +24,7 @@ interface TicketCardProps {
 export function TicketCard({
   ticket,
   onClick,
+  onContextMenu,
   isDragDisabled,
   isDropTarget = false,
   isValidDropTarget = false,
@@ -95,6 +97,7 @@ export function TicketCard({
     <div
       ref={setNodeRef}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={style}
