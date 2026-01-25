@@ -13,6 +13,11 @@ interface TicketCardProps {
   isDropTarget?: boolean;
   isValidDropTarget?: boolean;
   dropMode?: DropMode;
+  // Collapse support
+  childCount?: number;
+  depCount?: number;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export function TicketCard({
@@ -22,7 +27,12 @@ export function TicketCard({
   isDropTarget = false,
   isValidDropTarget = false,
   dropMode = "parent",
+  childCount = 0,
+  depCount = 0,
+  isCollapsed = false,
+  onToggleCollapse,
 }: TicketCardProps) {
+  const hasDependents = childCount > 0 || depCount > 0;
   const [hovered, setHovered] = useState(false);
 
   const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } =
@@ -35,7 +45,7 @@ export function TicketCard({
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `card-${ticket.id}`,
     data: { ticket, isCard: true },
-    disabled: !isDropTarget,
+    disabled: !isDropTarget || isDragging,
   });
 
   // Combine refs
@@ -153,6 +163,49 @@ export function TicketCard({
           P{ticket.priority}
         </span>
       </div>
+
+      {/* Collapse toggle and counts */}
+      {hasDependents && (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCollapse?.();
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "4px 10px",
+            backgroundColor: colors.surface,
+            borderTop: `1px solid ${colors.border}`,
+            cursor: "pointer",
+            fontSize: "11px",
+          }}
+        >
+          <span
+            style={{
+              color: colors.textMuted,
+              transition: "transform 0.15s",
+              transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+            }}
+          >
+            ▼
+          </span>
+          <span style={{ color: colors.textMuted }}>
+            {childCount > 0 && (
+              <span style={{ marginRight: depCount > 0 ? "8px" : 0 }}>
+                {childCount} {childCount === 1 ? "child" : "children"}
+              </span>
+            )}
+            {depCount > 0 && (
+              <span style={{ color: colors.warning }}>
+                {depCount} {depCount === 1 ? "blocker" : "blockers"}
+              </span>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

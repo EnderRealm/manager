@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import type { Ticket } from "../hooks/useTickets.ts";
 import { TicketCard } from "./TicketCard.tsx";
@@ -35,6 +36,19 @@ export function KanbanColumn({
   dropMode = "parent",
 }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const [collapsedTickets, setCollapsedTickets] = useState<Set<string>>(new Set());
+
+  const toggleCollapse = useCallback((ticketId: string) => {
+    setCollapsedTickets((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticketId)) {
+        next.delete(ticketId);
+      } else {
+        next.add(ticketId);
+      }
+      return next;
+    });
+  }, []);
 
   const showValidHighlight = isDragging && isOver && isValidDrop;
   const showInvalidHighlight = isDragging && isOver && !isValidDrop;
@@ -104,6 +118,19 @@ export function KanbanColumn({
         {tickets.map((ticket) => {
           const dependents = showDependents && dependencyMap ? dependencyMap.get(ticket.id) || [] : [];
           const isValidCardTarget = isDragging && getIsValidCardDrop ? getIsValidCardDrop(ticket.id) : false;
+          const isCollapsed = collapsedTickets.has(ticket.id);
+
+          // Count children vs dependencies
+          let childCount = 0;
+          let depCount = 0;
+          for (const dep of dependents) {
+            if (dep.parent === ticket.id) {
+              childCount++;
+            } else {
+              depCount++;
+            }
+          }
+
           return (
             <div key={ticket.id}>
               <TicketCard
@@ -112,8 +139,12 @@ export function KanbanColumn({
                 isDropTarget={!!isDragging}
                 isValidDropTarget={isValidCardTarget}
                 dropMode={dropMode}
+                childCount={childCount}
+                depCount={depCount}
+                isCollapsed={isCollapsed}
+                onToggleCollapse={() => toggleCollapse(ticket.id)}
               />
-              {dependents.map((dep) => {
+              {!isCollapsed && dependents.map((dep) => {
                 // Determine relationship: parent-child or dependency
                 const relationshipType: RelationshipType =
                   dep.parent === ticket.id ? "parent" : "dependency";
