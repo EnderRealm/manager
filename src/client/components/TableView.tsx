@@ -14,11 +14,115 @@ interface SortConfig {
   direction: SortDirection;
 }
 
+interface Filters {
+  types: string[];
+  priorities: number[];
+  assignees: string[];
+  statuses: string[];
+}
+
+const TICKET_TYPES = ["bug", "feature", "task", "epic", "chore"] as const;
+const PRIORITIES = [0, 1, 2, 3, 4] as const;
+const STATUSES = ["open", "in_progress", "closed"] as const;
+
 const statusOrder: Record<string, number> = {
   in_progress: 0,
   open: 1,
   closed: 2,
 };
+
+function FilterDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+  renderOption,
+}: {
+  label: string;
+  options: readonly (string | number)[];
+  selected: (string | number)[];
+  onChange: (selected: (string | number)[]) => void;
+  renderOption?: (opt: string | number) => string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const toggleOption = (opt: string | number) => {
+    if (selected.includes(opt)) {
+      onChange(selected.filter((s) => s !== opt));
+    } else {
+      onChange([...selected, opt]);
+    }
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          ...buttonSecondary,
+          padding: "6px 12px",
+          fontSize: 12,
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        {label}
+        {selected.length > 0 && (
+          <span
+            style={{
+              backgroundColor: colors.accent,
+              color: colors.surface,
+              borderRadius: 10,
+              padding: "1px 6px",
+              fontSize: 10,
+            }}
+          >
+            {selected.length}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            marginTop: 4,
+            backgroundColor: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.sm,
+            padding: 8,
+            zIndex: 100,
+            minWidth: 120,
+          }}
+        >
+          {options.map((opt) => (
+            <label
+              key={opt}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "4px 0",
+                cursor: "pointer",
+                fontSize: 12,
+                color: colors.textPrimary,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(opt)}
+                onChange={() => toggleOption(opt)}
+              />
+              {renderOption ? renderOption(opt) : opt}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function TableView() {
   const { id: projectId } = useParams<{ id: string }>();
@@ -26,11 +130,34 @@ export function TableView() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [showNewTicketForm, setShowNewTicketForm] = useState(false);
   const [sort, setSort] = useState<SortConfig>({ field: "priority", direction: "asc" });
+  const [filters, setFilters] = useState<Filters>({ types: [], priorities: [], assignees: [], statuses: [] });
+
+  const availableAssignees = [...new Set(
+    (tickets ?? [])
+      .map((t) => t.assignee)
+      .filter((a): a is string => !!a)
+  )].sort();
+
+  const hasActiveFilters = filters.types.length > 0 || filters.priorities.length > 0 ||
+    filters.assignees.length > 0 || filters.statuses.length > 0;
+
+  const clearAllFilters = () => setFilters({ types: [], priorities: [], assignees: [], statuses: [] });
 
   const sortedTickets = useMemo(() => {
     if (!tickets) return [];
 
-    return [...tickets].sort((a, b) => {
+    // Apply filters first
+    const filtered = tickets.filter((t) => {
+      if (filters.types.length > 0 && !filters.types.includes(t.type)) return false;
+      if (filters.priorities.length > 0 && !filters.priorities.includes(t.priority)) return false;
+      if (filters.statuses.length > 0 && !filters.statuses.includes(t.status)) return false;
+      if (filters.assignees.length > 0) {
+        if (!t.assignee || !filters.assignees.includes(t.assignee)) return false;
+      }
+      return true;
+    });
+
+    return filtered.sort((a, b) => {
       const dir = sort.direction === "asc" ? 1 : -1;
 
       switch (sort.field) {
@@ -52,7 +179,7 @@ export function TableView() {
           return 0;
       }
     });
-  }, [tickets, sort]);
+  }, [tickets, sort, filters]);
 
   const handleSort = (field: SortField) => {
     setSort((prev) => ({
@@ -81,7 +208,7 @@ export function TableView() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 24,
+          marginBottom: 16,
         }}
       >
         <h1
@@ -100,6 +227,57 @@ export function TableView() {
         >
           + New Ticket
         </button>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <FilterDropdown
+          label="Type"
+          options={[...TICKET_TYPES]}
+          selected={filters.types}
+          onChange={(selected) => setFilters((f) => ({ ...f, types: selected as string[] }))}
+        />
+        <FilterDropdown
+          label="Priority"
+          options={[...PRIORITIES]}
+          selected={filters.priorities}
+          onChange={(selected) => setFilters((f) => ({ ...f, priorities: selected as number[] }))}
+          renderOption={(p) => `P${p}`}
+        />
+        <FilterDropdown
+          label="Status"
+          options={[...STATUSES]}
+          selected={filters.statuses}
+          onChange={(selected) => setFilters((f) => ({ ...f, statuses: selected as string[] }))}
+          renderOption={(s) => s === "in_progress" ? "In Progress" : String(s).charAt(0).toUpperCase() + String(s).slice(1)}
+        />
+        {availableAssignees.length > 0 && (
+          <FilterDropdown
+            label="Assignee"
+            options={availableAssignees}
+            selected={filters.assignees}
+            onChange={(selected) => setFilters((f) => ({ ...f, assignees: selected as string[] }))}
+          />
+        )}
+        {hasActiveFilters && (
+          <button
+            onClick={clearAllFilters}
+            style={{
+              ...buttonSecondary,
+              padding: "6px 12px",
+              fontSize: 12,
+            }}
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       <div
