@@ -118,7 +118,9 @@ export function KanbanColumn({
       </div>
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {tickets.map((ticket) => {
-          const dependents = showDependents && dependencyMap ? dependencyMap.get(ticket.id) || [] : [];
+          // Only show "open" status dependents nested - in_progress/closed appear in their own columns
+          const allDependents = showDependents && dependencyMap ? dependencyMap.get(ticket.id) || [] : [];
+          const dependents = allDependents.filter((d) => d.status === "open");
           const isValidCardTarget = isDragging && getIsValidCardDrop ? getIsValidCardDrop(ticket.id) : false;
           const isCollapsed = collapsedTickets.has(ticket.id);
 

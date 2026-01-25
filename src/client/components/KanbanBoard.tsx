@@ -352,11 +352,14 @@ export function KanbanBoard() {
     }
   }
 
-  // Get IDs of all tickets that are dependents (they'll be shown under their blockers)
+  // Get IDs of tickets that should be shown nested (only "open" status children/dependents)
+  // in_progress and closed tickets should appear in their own columns, not nested
   const dependentIds = new Set<string>();
   for (const deps of dependencyMap.values()) {
     for (const dep of deps) {
-      dependentIds.add(dep.id);
+      if (dep.status === "open") {
+        dependentIds.add(dep.id);
+      }
     }
   }
 
@@ -852,7 +855,9 @@ export function KanbanBoard() {
             </div>
           ) : (
             getTicketsForTab(activeTab).map((ticket) => {
-              const dependents = tabShowsDependents(activeTab) ? dependencyMap.get(ticket.id) || [] : [];
+              // Only show "open" status dependents nested - in_progress/closed appear in their own columns
+              const allDependents = tabShowsDependents(activeTab) ? dependencyMap.get(ticket.id) || [] : [];
+              const dependents = allDependents.filter((d) => d.status === "open");
               return (
                 <div key={ticket.id}>
                   <SwipeableTicketCard
