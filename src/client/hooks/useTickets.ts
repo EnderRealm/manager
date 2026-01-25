@@ -195,6 +195,20 @@ async function setParentApi(
   return res.json();
 }
 
+async function clearParentApi(
+  projectId: string,
+  ticketId: string
+): Promise<Ticket> {
+  const res = await fetch(
+    `/api/projects/${projectId}/tickets/${ticketId}/parent`,
+    { method: "DELETE" }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to clear parent");
+  }
+  return res.json();
+}
+
 export function useTicketMutations(projectId: string) {
   const queryClient = useQueryClient();
 
@@ -253,6 +267,15 @@ export function useTicketMutations(projectId: string) {
     },
   });
 
+  const clearParentMutation = useMutation({
+    mutationFn: ({ ticketId, parentId }: { ticketId: string; parentId: string }) =>
+      clearParentApi(projectId, ticketId),
+    onSuccess: (_data, { ticketId, parentId }) => {
+      invalidateTickets(ticketId);
+      invalidateTickets(parentId);
+    },
+  });
+
   // Track which tickets are currently being mutated
   const pendingTicketIds = new Set<string>();
   if (startMutation.isPending && startMutation.variables) {
@@ -272,13 +295,15 @@ export function useTicketMutations(projectId: string) {
     addDep: addDepMutation.mutate,
     removeDep: removeDepMutation.mutate,
     setParent: setParentMutation.mutate,
+    clearParent: clearParentMutation.mutate,
     isLoading:
       startMutation.isPending ||
       closeMutation.isPending ||
       reopenMutation.isPending ||
       addDepMutation.isPending ||
       removeDepMutation.isPending ||
-      setParentMutation.isPending,
+      setParentMutation.isPending ||
+      clearParentMutation.isPending,
     pendingTicketIds,
   };
 }

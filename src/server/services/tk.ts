@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "../lib/logger.ts";
 
@@ -387,4 +387,38 @@ export async function setParent(
   parentId: string
 ): Promise<void> {
   await execTk(projectPath, ["edit", ticketId, "--parent", parentId]);
+}
+
+export async function clearParent(
+  projectPath: string,
+  ticketId: string
+): Promise<void> {
+  // tk edit --parent "" skips empty values, so manipulate file directly
+  const ticketPath = join(projectPath, ".tickets", `${ticketId}.md`);
+
+  if (!existsSync(ticketPath)) {
+    throw new Error(`Ticket not found: ${ticketId}`);
+  }
+
+  const content = readFileSync(ticketPath, "utf-8");
+  const lines = content.split("\n");
+  const filtered: string[] = [];
+  let inFrontmatter = false;
+
+  for (const line of lines) {
+    if (line === "---") {
+      inFrontmatter = !inFrontmatter;
+      filtered.push(line);
+      continue;
+    }
+
+    // Skip parent line in frontmatter
+    if (inFrontmatter && line.match(/^parent:\s*/)) {
+      continue;
+    }
+
+    filtered.push(line);
+  }
+
+  writeFileSync(ticketPath, filtered.join("\n"));
 }

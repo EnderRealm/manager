@@ -4,9 +4,12 @@ import { CSS } from "@dnd-kit/utilities";
 import type { Ticket } from "../hooks/useTickets.ts";
 import { colors, fonts, radius, typeColors, priorityColors } from "../theme.ts";
 
+export type RelationshipType = "parent" | "dependency";
+
 interface DependentCardProps {
   ticket: Ticket;
   parentId: string;
+  relationshipType?: RelationshipType;
   onClick?: () => void;
   isDragDisabled?: boolean;
 }
@@ -14,6 +17,7 @@ interface DependentCardProps {
 export function DependentCard({
   ticket,
   parentId,
+  relationshipType = "dependency",
   onClick,
   isDragDisabled,
 }: DependentCardProps) {
@@ -22,7 +26,7 @@ export function DependentCard({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: `dep-${ticket.id}`,
-      data: { ticket, isDependent: true, parentId },
+      data: { ticket, isDependent: true, parentId, relationshipType },
       disabled: isDragDisabled,
     });
 

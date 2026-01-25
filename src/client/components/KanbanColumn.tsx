@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/core";
 import type { Ticket } from "../hooks/useTickets.ts";
 import { TicketCard } from "./TicketCard.tsx";
-import { DependentCard } from "./DependentCard.tsx";
+import { DependentCard, type RelationshipType } from "./DependentCard.tsx";
 import { colors, fonts, radius } from "../theme.ts";
 
 export type ColumnId = "in_progress" | "ready" | "blocked" | "closed";
@@ -113,14 +113,20 @@ export function KanbanColumn({
                 isValidDropTarget={isValidCardTarget}
                 dropMode={dropMode}
               />
-              {dependents.map((dep) => (
-                <DependentCard
-                  key={dep.id}
-                  ticket={dep}
-                  parentId={ticket.id}
-                  onClick={onTicketClick ? () => onTicketClick(dep.id) : undefined}
-                />
-              ))}
+              {dependents.map((dep) => {
+                // Determine relationship: parent-child or dependency
+                const relationshipType: RelationshipType =
+                  dep.parent === ticket.id ? "parent" : "dependency";
+                return (
+                  <DependentCard
+                    key={dep.id}
+                    ticket={dep}
+                    parentId={ticket.id}
+                    relationshipType={relationshipType}
+                    onClick={onTicketClick ? () => onTicketClick(dep.id) : undefined}
+                  />
+                );
+              })}
             </div>
           );
         })}

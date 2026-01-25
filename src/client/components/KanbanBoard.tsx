@@ -41,7 +41,7 @@ import {
 } from "../hooks/useTickets.ts";
 import { KanbanColumn, type ColumnId } from "./KanbanColumn.tsx";
 import { TicketCard } from "./TicketCard.tsx";
-import { DependentCard } from "./DependentCard.tsx";
+import { DependentCard, type RelationshipType } from "./DependentCard.tsx";
 import { SlideOutPanel } from "./SlideOutPanel.tsx";
 import { TicketDetailContent } from "./TicketDetail.tsx";
 import { TicketFormContent } from "./TicketForm.tsx";
@@ -245,9 +245,11 @@ export function KanbanBoard() {
   const { data: readyTickets } = useReadyTickets(projectId!);
   const { data: blockedTickets } = useBlockedTickets(projectId!);
   const { data: closedTickets } = useClosedTickets(projectId!);
-  const { start, close, reopen, addDep, removeDep, setParent } = useTicketMutations(projectId!);
+  const { start, close, reopen, addDep, removeDep, setParent, clearParent } = useTicketMutations(projectId!);
 
   const [activeTicket, setActiveTicket] = useState<Ticket | null>(null);
+  const [activeRelationshipType, setActiveRelationshipType] = useState<RelationshipType | null>(null);
+  const [activeParentId, setActiveParentId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<ColumnId | null>(null);
   const [overCardId, setOverCardId] = useState<string | null>(null);
   const [droppedTicketId, setDroppedTicketId] = useState<string | null>(null);
@@ -434,9 +436,12 @@ export function KanbanBoard() {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    const ticket = event.active.data.current?.ticket as Ticket | undefined;
+    const data = event.active.data.current;
+    const ticket = data?.ticket as Ticket | undefined;
     if (ticket) {
       setActiveTicket(ticket);
+      setActiveRelationshipType(data?.relationshipType as RelationshipType | undefined ?? null);
+      setActiveParentId(data?.parentId as string | undefined ?? null);
     }
   };
 
@@ -456,7 +461,12 @@ export function KanbanBoard() {
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    const currentRelationshipType = activeRelationshipType;
+    const currentParentId = activeParentId;
+
     setActiveTicket(null);
+    setActiveRelationshipType(null);
+    setActiveParentId(null);
     setOverColumn(null);
     setOverCardId(null);
 
@@ -497,9 +507,35 @@ export function KanbanBoard() {
     // Can't drop on blocked column
     if (targetColumn === "blocked") return;
 
-    // If dragging a dependent card to a column, remove dependency + change status
+    // If dragging a dependent card to a column, handle based on relationship type
     if (isDependent && parentId) {
-      // Remove dependency first, then change status
+      const relationshipType = currentRelationshipType ?? activeData?.relationshipType as RelationshipType | undefined;
+
+      // Dependency relationships cannot be cleared by dropping on column
+      if (relationshipType === "dependency") {
+        return;
+      }
+
+      // Parent-child relationship: clear the parent
+      if (relationshipType === "parent") {
+        setDroppedTicketId(ticket.id);
+        setTimeout(() => setDroppedTicketId(null), 500);
+
+        clearParent({ ticketId: ticket.id, parentId });
+
+        // Optionally change status based on target column
+        const sourceStatus = getSourceStatus(ticket);
+        if (targetColumn === "in_progress" && sourceStatus !== "in_progress") {
+          setTimeout(() => start(ticket.id), 100);
+        } else if (targetColumn === "closed" && sourceStatus !== "closed") {
+          setTimeout(() => close(ticket.id), 100);
+        } else if (targetColumn === "ready" && sourceStatus !== "open") {
+          setTimeout(() => reopen(ticket.id), 100);
+        }
+        return;
+      }
+
+      // Legacy fallback for when relationshipType wasn't set (remove dependency)
       setDroppedTicketId(ticket.id);
       setTimeout(() => setDroppedTicketId(null), 500);
 
@@ -544,6 +580,8 @@ export function KanbanBoard() {
 
   const handleDragCancel = () => {
     setActiveTicket(null);
+    setActiveRelationshipType(null);
+    setActiveParentId(null);
     setOverColumn(null);
     setOverCardId(null);
   };
@@ -551,6 +589,19 @@ export function KanbanBoard() {
   // Compute valid drop targets for the currently dragged ticket
   const getIsValidDrop = (columnId: ColumnId): boolean => {
     if (!activeTicket) return false;
+
+    // Dependency relationships cannot be cleared by dropping on column
+    // Only parent-child relationships can be cleared this way
+    if (activeRelationshipType === "dependency") {
+      return false;
+    }
+
+    // Parent-child relationships: dropping on column clears the parent
+    if (activeRelationshipType === "parent") {
+      // Allow dropping on any column except blocked
+      return columnId !== "blocked";
+    }
+
     return isValidTransition(getSourceStatus(activeTicket), columnId, true);
   };
 
@@ -770,15 +821,20 @@ export function KanbanBoard() {
                     leftLabel={activeTab === "ready" ? "In Progress" : activeTab === "closed" ? "Ready" : undefined}
                     rightLabel={activeTab === "in_progress" ? "Ready" : activeTab === "ready" ? "Closed" : undefined}
                   />
-                  {dependents.map((dep) => (
-                    <DependentCard
-                      key={dep.id}
-                      ticket={dep}
-                      parentId={ticket.id}
-                      onClick={() => handleTicketClick(dep.id)}
-                      isDragDisabled
-                    />
-                  ))}
+                  {dependents.map((dep) => {
+                    const relationshipType: RelationshipType =
+                      dep.parent === ticket.id ? "parent" : "dependency";
+                    return (
+                      <DependentCard
+                        key={dep.id}
+                        ticket={dep}
+                        parentId={ticket.id}
+                        relationshipType={relationshipType}
+                        onClick={() => handleTicketClick(dep.id)}
+                        isDragDisabled
+                      />
+                    );
+                  })}
                 </div>
               );
             })
