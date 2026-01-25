@@ -1,0 +1,42 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"  # Vite client
+      - "3000:3000"  # Hono API server
+
+    environment:
+      - NODE_ENV=development
+      # Pass through from host env (for secrets)
+      - ANTHROPIC_API_KEY
+      - DATABASE_URL
+
+    # Use .env file for secrets
+    env_file:
+      - .env
+
+    volumes:
+      # Source directories for hot reload
+      - ./src:/app/src
+      - ./tests:/app/tests
+
+      # Config files
+      - ./vite.config.ts:/app/vite.config.ts:ro
+      - ./vitest.config.ts:/app/vitest.config.ts:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./config.json:/app/config.json
+
+      # Keep node_modules inside container (not from host)
+      - node_modules:/app/node_modules
+
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+volumes:
+  node_modules:
