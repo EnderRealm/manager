@@ -142,7 +142,8 @@ export async function captureLogs(
   const { stdout, exitCode } = await execTmux([
     "capture-pane",
     "-t", sessionName,
-    "-p",
+    "-p",        // output to stdout
+    "-J",        // join wrapped lines
     "-S", `-${lines}`,
   ]);
 

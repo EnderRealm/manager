@@ -80,24 +80,15 @@ export async function execTk(
 
 export async function getTickets(projectPath: string): Promise<Ticket[]> {
   try {
-    // Run both commands to get full data + titles
-    const [queryResult, lsResult] = await Promise.all([
-      execTk(projectPath, ["query"]),
-      execTk(projectPath, ["ls"]),
-    ]);
-
-    // Parse titles from ls output
-    const titles = parseListOutput(lsResult.stdout);
-    const titleMap = new Map(titles.map((t) => [t.id, t.title]));
+    const { stdout } = await execTk(projectPath, ["query"]);
 
     const tickets: Ticket[] = [];
-    for (const line of queryResult.stdout.trim().split("\n")) {
+    for (const line of stdout.trim().split("\n")) {
       if (!line) continue;
       const raw = JSON.parse(line);
       tickets.push({
         ...raw,
         priority: raw.priority !== undefined ? Number(raw.priority) : 2,
-        title: titleMap.get(raw.id),
       });
     }
 
@@ -108,33 +99,23 @@ export async function getTickets(projectPath: string): Promise<Ticket[]> {
   }
 }
 
-function parseListOutput(stdout: string): { id: string; title: string }[] {
-  const results: { id: string; title: string }[] = [];
+function parseTicketIds(stdout: string): string[] {
+  const ids: string[] = [];
   for (const line of stdout.trim().split("\n")) {
-    if (!line) continue;
-    // Format: "m-2b6b   [P2][open] - Project Manager Dashboard"
-    const match = line.match(/^(\S+)\s+.*?\s-\s(.+?)(?:\s+<-.*)?$/);
-    if (match && match[1] && match[2]) {
-      results.push({ id: match[1], title: match[2] });
+    const match = line.match(/^(\S+-[a-f0-9]+)/);
+    if (match && match[1]) {
+      ids.push(match[1]);
     }
   }
-  return results;
+  return ids;
 }
 
 export async function getReadyTickets(projectPath: string): Promise<Ticket[]> {
   try {
     const { stdout } = await execTk(projectPath, ["ready"]);
-    const parsed = parseListOutput(stdout);
+    const ids = parseTicketIds(stdout);
     const allTickets = await getTickets(projectPath);
-
-    const results: Ticket[] = [];
-    for (const p of parsed) {
-      const ticket = allTickets.find((t) => t.id === p.id);
-      if (ticket) {
-        results.push({ ...ticket, title: p.title });
-      }
-    }
-    return results;
+    return allTickets.filter((t) => ids.includes(t.id));
   } catch {
     return [];
   }
@@ -143,17 +124,9 @@ export async function getReadyTickets(projectPath: string): Promise<Ticket[]> {
 export async function getBlockedTickets(projectPath: string): Promise<Ticket[]> {
   try {
     const { stdout } = await execTk(projectPath, ["blocked"]);
-    const parsed = parseListOutput(stdout);
+    const ids = parseTicketIds(stdout);
     const allTickets = await getTickets(projectPath);
-
-    const results: Ticket[] = [];
-    for (const p of parsed) {
-      const ticket = allTickets.find((t) => t.id === p.id);
-      if (ticket) {
-        results.push({ ...ticket, title: p.title });
-      }
-    }
-    return results;
+    return allTickets.filter((t) => ids.includes(t.id));
   } catch {
     return [];
   }
@@ -165,17 +138,9 @@ export async function getClosedTickets(
 ): Promise<Ticket[]> {
   try {
     const { stdout } = await execTk(projectPath, ["closed", `--limit=${limit}`]);
-    const parsed = parseListOutput(stdout);
+    const ids = parseTicketIds(stdout);
     const allTickets = await getTickets(projectPath);
-
-    const results: Ticket[] = [];
-    for (const p of parsed) {
-      const ticket = allTickets.find((t) => t.id === p.id);
-      if (ticket) {
-        results.push({ ...ticket, title: p.title });
-      }
-    }
-    return results;
+    return allTickets.filter((t) => ids.includes(t.id));
   } catch {
     return [];
   }
@@ -346,21 +311,21 @@ export async function startTicket(
   projectPath: string,
   id: string
 ): Promise<void> {
-  await execTk(projectPath, ["start", id]);
+  await execTk(projectPath, ["edit", id, "--status", "in_progress"]);
 }
 
 export async function closeTicket(
   projectPath: string,
   id: string
 ): Promise<void> {
-  await execTk(projectPath, ["close", id]);
+  await execTk(projectPath, ["edit", id, "--status", "closed"]);
 }
 
 export async function reopenTicket(
   projectPath: string,
   id: string
 ): Promise<void> {
-  await execTk(projectPath, ["reopen", id]);
+  await execTk(projectPath, ["edit", id, "--status", "open"]);
 }
 
 export async function addDependency(

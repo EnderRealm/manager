@@ -4,7 +4,10 @@ import {
   loadConfig,
   addProject,
   removeProject,
+  loadPreferences,
+  savePreferences,
   type ProjectConfig,
+  type Preferences,
 } from "../lib/config.ts";
 
 const config = new Hono();
@@ -43,6 +46,22 @@ config.delete("/config/projects/:name", (c) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to remove project";
     return c.json({ error: message }, 404);
+  }
+});
+
+config.get("/preferences", (c) => {
+  const preferences = loadPreferences();
+  return c.json(preferences);
+});
+
+config.put("/preferences", async (c) => {
+  try {
+    const body = await c.req.json<Preferences>();
+    savePreferences(body);
+    return c.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to save preferences";
+    return c.json({ error: message }, 400);
   }
 });
 

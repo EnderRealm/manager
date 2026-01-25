@@ -117,6 +117,7 @@ export function TableView() {
             borderCollapse: "collapse",
             fontFamily: fonts.sans,
             fontSize: 13,
+            tableLayout: "fixed",
           }}
         >
           <thead>
@@ -265,7 +266,6 @@ function TableRow({
           padding: "10px 12px",
           borderBottom: `1px solid ${colors.borderMuted}`,
           color: colors.textPrimary,
-          maxWidth: 400,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",

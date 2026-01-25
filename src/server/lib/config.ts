@@ -25,8 +25,21 @@ export interface ProjectConfig {
   services?: ServiceConfig[];
 }
 
+export interface TablePreferences {
+  columnWidths?: Record<string, number>;
+  sorting?: Array<{ id: string; desc: boolean }>;
+  columnFilters?: Array<{ id: string; value: unknown }>;
+  columnVisibility?: Record<string, boolean>;
+}
+
+export interface Preferences {
+  servicesTable?: TablePreferences;
+  logsTable?: TablePreferences;
+}
+
 export interface Config {
   projects: ProjectConfig[];
+  preferences?: Preferences;
 }
 
 const configPath =
@@ -298,4 +311,16 @@ export function removeService(projectName: string, serviceId: string): Config {
   saveConfig(config);
   logger.info({ projectName, serviceId }, "Service removed");
   return config;
+}
+
+export function loadPreferences(): Preferences {
+  const config = loadConfig();
+  return config.preferences ?? {};
+}
+
+export function savePreferences(preferences: Preferences): void {
+  const config = loadConfig();
+  config.preferences = preferences;
+  saveConfig(config);
+  logger.info("Preferences saved");
 }

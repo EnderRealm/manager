@@ -1,17 +1,13 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
 import { KanbanBoard } from "./KanbanBoard.tsx";
 import { TableView } from "./TableView.tsx";
 import { ServicesView } from "./ServicesView.tsx";
-import { LogsPanel } from "./LogsPanel.tsx";
 import { colors, radius } from "../theme.ts";
 
 type ViewTab = "board" | "table" | "services";
 
 export function ProjectView() {
-  const { id: projectId } = useParams<{ id: string }>();
   const [activeView, setActiveView] = useState<ViewTab>("board");
-  const [logsServiceId, setLogsServiceId] = useState<string | null>(null);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -47,17 +43,8 @@ export function ProjectView() {
       <div style={{ flex: 1, overflow: "hidden" }}>
         {activeView === "board" && <KanbanBoard />}
         {activeView === "table" && <TableView />}
-        {activeView === "services" && <ServicesView onViewLogs={setLogsServiceId} />}
+        {activeView === "services" && <ServicesView />}
       </div>
-
-      {/* Logs panel */}
-      {projectId && (
-        <LogsPanel
-          projectId={projectId}
-          serviceId={logsServiceId}
-          onClose={() => setLogsServiceId(null)}
-        />
-      )}
     </div>
   );
 }

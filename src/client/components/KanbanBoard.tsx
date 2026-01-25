@@ -305,17 +305,24 @@ export function KanbanBoard() {
   const filterHidden = (tickets: Ticket[]) =>
     tickets.filter((t) => t.id !== droppedTicketId);
 
-  const inProgressTickets = applyFilters(filterHidden(
+  // Sort by priority (P1 first), then by creation date (oldest first)
+  const sortTickets = (tickets: Ticket[]) =>
+    [...tickets].sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return a.created.localeCompare(b.created);
+    });
+
+  const inProgressTickets = sortTickets(applyFilters(filterHidden(
     allTickets?.filter((t) => t.status === "in_progress") ?? []
-  ));
+  )));
 
   // Filter ready to only show open tickets (exclude in_progress which appear in their own column)
-  const readyOpenTickets = applyFilters(filterHidden(
+  const readyOpenTickets = sortTickets(applyFilters(filterHidden(
     readyTickets?.filter((t) => t.status === "open") ?? []
-  ));
+  )));
 
-  const filteredBlockedTickets = applyFilters(filterHidden(blockedTickets ?? []));
-  const filteredClosedTickets = applyFilters(filterHidden(closedTickets ?? []));
+  const filteredBlockedTickets = sortTickets(applyFilters(filterHidden(blockedTickets ?? [])));
+  const filteredClosedTickets = sortTickets(applyFilters(filterHidden(closedTickets ?? [])));
 
   // Build dependency map: blockerId -> [tickets that depend on it]
   // Includes both deps (blocking) and parent-child relationships
