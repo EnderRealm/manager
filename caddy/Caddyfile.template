@@ -8,7 +8,7 @@
 	reverse_proxy localhost:{$MANAGER_PORT:3100}
 
 	tls {
-		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		dns cloudflare {$CLOUDFLARE_API_TOKEN}
 	}
 
 	log {
