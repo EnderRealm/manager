@@ -1,0 +1,20 @@
+{
+	storage file_system {
+		root {$CADDY_DATA_DIR}
+	}
+}
+
+{$MANAGER_DOMAIN} {
+	reverse_proxy localhost:{$MANAGER_PORT:3100}
+
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+
+	log {
+		output file {$CADDY_LOG_DIR}/caddy-access.log {
+			roll_size 50MiB
+			roll_keep 3
+		}
+	}
+}

@@ -1,4 +1,7 @@
 import { Hono } from "hono";
+import { serveStatic } from "hono/bun";
+import fs from "node:fs";
+import path from "node:path";
 import { logger } from "./lib/logger.ts";
 import { loadConfig } from "./lib/config.ts";
 import { tickets } from "./routes/tickets.ts";
@@ -9,6 +12,7 @@ import { services } from "./routes/services.ts";
 import { agents } from "./routes/agents.ts";
 import { initialize as initProcessManager } from "./services/process-manager.ts";
 
+const isProd = process.env.NODE_ENV === "production";
 const app = new Hono();
 
 const config = loadConfig();
@@ -45,13 +49,25 @@ app.route("/api", events);
 app.route("/api", services);
 app.route("/api", agents);
 
+if (isProd) {
+  const distDir = path.join(process.cwd(), "dist", "client");
+
+  app.use("/*", serveStatic({ root: "./dist/client" }));
+
+  app.get("*", (c) => {
+    const indexPath = path.join(distDir, "index.html");
+    const html = fs.readFileSync(indexPath, "utf-8");
+    return c.html(html);
+  });
+}
+
 // Initialize process manager (adopts orphan sessions, starts auto-start services)
 initProcessManager().catch((err) => {
   logger.error({ err }, "Failed to initialize process manager");
 });
 
-const port = 3000;
-logger.info({ port }, "Server starting");
+const port = parseInt(process.env.PORT || "3000", 10);
+logger.info({ port, mode: isProd ? "production" : "development" }, "Server starting");
 
 export default {
   port,
