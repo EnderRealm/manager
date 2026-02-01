@@ -55,6 +55,9 @@ if (isProd) {
   app.use("/*", serveStatic({ root: "./dist/client" }));
 
   app.get("*", (c) => {
+    if (c.req.path.startsWith("/api")) {
+      return c.json({ error: "Not found" }, 404);
+    }
     const indexPath = path.join(distDir, "index.html");
     const html = fs.readFileSync(indexPath, "utf-8");
     return c.html(html);
