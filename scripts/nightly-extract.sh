@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/opt/homebrew/bin/bash
 set -euo pipefail
 
 # Nightly extraction: processes unprocessed session summaries and creates tickets.
