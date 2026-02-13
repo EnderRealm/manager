@@ -71,6 +71,7 @@ If none, write "None."
 ### Problems
 Bullet list of bugs, blockers, or things that did not work.
 Include resolution status: (resolved) or (unresolved).
+Tag each with a friction category: (buggy_code), (wrong_approach), (env_constraint), (misunderstood_intent), or (excessive_iteration).
 If none, write "None."
 
 ### Discoveries
@@ -81,6 +82,14 @@ If none, write "None."
 Bullet list of work started but not finished.
 Include enough context to resume or create a follow-up ticket.
 If none, write "None."
+
+### Outcome
+Rate session outcome: fully_achieved | mostly_achieved | partially_achieved | not_achieved
+One sentence justification.
+
+### Metrics
+- Files touched: <estimate from conversation>
+- Estimated scope: small | medium | large
 
 <!-- END_SESSION_SUMMARY -->
 
@@ -139,6 +148,38 @@ for line in open(sys.argv[1]):
 print('unknown', 'unknown')
 PYEOF
 ) || { session_date="unknown"; branch="unknown"; }
+
+    # Extract quantitative metrics from raw JSONL
+    message_count="$(grep -c '"type":"user"\|"type":"assistant"' "$jsonl_file" 2>/dev/null || echo "0")"
+    tool_uses="$(python3 -c "
+import json, sys
+count = 0
+for line in open(sys.argv[1]):
+    try:
+        obj = json.loads(line)
+        if obj.get('type') == 'assistant':
+            for block in obj.get('message', {}).get('content', []):
+                if isinstance(block, dict) and block.get('type') == 'tool_use':
+                    count += 1
+    except: pass
+print(count)
+" "$jsonl_file" 2>/dev/null || echo "0")"
+    files_touched="$(python3 -c "
+import json, sys
+files = set()
+for line in open(sys.argv[1]):
+    try:
+        obj = json.loads(line)
+        if obj.get('type') == 'assistant':
+            for block in obj.get('message', {}).get('content', []):
+                if isinstance(block, dict) and block.get('type') == 'tool_use':
+                    inp = block.get('input', {})
+                    for key in ('file_path', 'path'):
+                        if key in inp and isinstance(inp[key], str):
+                            files.add(inp[key])
+    except: pass
+print(len(files))
+" "$jsonl_file" 2>/dev/null || echo "0")"
 
     log "Summarizing: $session_id (project: $project, date: $session_date)"
 
@@ -221,6 +262,9 @@ session_id: $session_id
 date: $session_date
 branch: $branch
 tickets: $tickets
+message_count: $message_count
+tool_uses: $tool_uses
+files_touched: $files_touched
 processed: false
 ---
 

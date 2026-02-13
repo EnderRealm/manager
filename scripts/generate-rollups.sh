@@ -18,24 +18,41 @@ fi
 
 ROLLUP_PROMPT='You are generating a rollup summary from coding session data.
 
-Synthesize the inputs into a cohesive summary. Do not simply concatenate — identify themes, highlight key outcomes, and note patterns.
+Synthesize the inputs into a cohesive narrative organized into two major sections: Looking Back and Looking Forward. Do not simply concatenate — identify themes, quantify where possible, and surface actionable insights.
 
-Sections to produce:
+## Looking Back
 
-### Summary
-Brief narrative of work across all projects during this period.
+### Stats
+Aggregate quantitative data from the inputs. Include where available:
+- Sessions count
+- Messages (sum message_count from frontmatter if present)
+- Files touched (sum files_touched from frontmatter if present)
+- Tickets worked on (unique ticket IDs referenced)
+- Tickets closed (if determinable from context)
+Present as a compact list. Omit any metric you cannot determine.
 
-### Key Outcomes
-Bullet list of what was accomplished.
+### Big Wins
+Bullet list of specific accomplishments worth highlighting. Focus on completed features, shipped work, resolved hard problems, and milestones reached. Be specific — name the feature/system, not just "made progress."
 
-### Decisions Made
-Bullet list of significant decisions, preserving (auto)/(human) tags.
+### Key Learnings
+Bullet list combining:
+- Important decisions made (preserve (auto)/(human) tags)
+- Discoveries about codebases, tools, or domain
+- Patterns identified (reference pattern IDs if known)
 
-### Open Items
-Bullet list of unresolved problems or incomplete work carried forward.
+## Looking Forward
 
-### Patterns
-Bullet list of any active patterns observed (reference pattern IDs if known).
+### Suggested Changes
+Bullet list of improvements identified during this period — things that should change in workflows, CLAUDE.md, tooling, or conventions. Include friction categories and counts if available (e.g., "3 sessions hit buggy_code issues with drag-and-drop").
+
+### Outstanding Work
+Bullet list of incomplete items carried forward. Include enough context to pick up the work.
+
+### Proposed Changes
+Bullet list of potential improvements that emerged from patterns or discoveries but have not been actioned yet. Include rationale.
+
+### Open Areas of Work
+For each active project, list major themes or epics in progress. One line per project with its key focus areas.
 
 Keep it concise. Omit sections that would be empty.'
 
@@ -51,10 +68,13 @@ generate_rollup() {
   local output_file="$output_dir/$date_label.md"
   mkdir -p "$output_dir"
 
-  # Collect input content
+  # Collect input content and aggregate metrics
   local combined=""
   local projects=()
   local session_count=0
+  local total_messages=0
+  local total_tool_uses=0
+  local total_files_touched=0
   for f in "${input_files[@]}"; do
     [[ -f "$f" ]] || continue
     combined+="$(cat "$f")"
@@ -70,11 +90,20 @@ generate_rollup() {
     local projs_line
     projs_line="$(head -20 "$f" | grep '^projects:' | sed 's/^projects: *//')" || true
     if [[ -n "$projs_line" ]]; then
-      # Parse [a, b, c] format
       for p in $(echo "$projs_line" | tr -d '[]' | tr ',' '\n' | tr -d ' '); do
         projects+=("$p")
       done
     fi
+
+    # Aggregate quantitative metrics from frontmatter
+    local mc tc fc
+    mc="$(head -20 "$f" | grep '^message_count:' | sed 's/^message_count: *//' | tr -d ' ')" || true
+    tc="$(head -20 "$f" | grep '^tool_uses:' | sed 's/^tool_uses: *//' | tr -d ' ')" || true
+    fc="$(head -20 "$f" | grep '^files_touched:' | sed 's/^files_touched: *//' | tr -d ' ')" || true
+    [[ -n "$mc" && "$mc" =~ ^[0-9]+$ ]] && total_messages=$((total_messages + mc))
+    [[ -n "$tc" && "$tc" =~ ^[0-9]+$ ]] && total_tool_uses=$((total_tool_uses + tc))
+    [[ -n "$fc" && "$fc" =~ ^[0-9]+$ ]] && total_files_touched=$((total_files_touched + fc))
+
     session_count=$((session_count + 1))
   done
 
@@ -95,13 +124,20 @@ generate_rollup() {
 
   log "Generating $level rollup: $date_label ($session_count inputs, projects: $unique_projects)"
 
+  # Build metrics context for Claude
+  local metrics_context=""
+  metrics_context="Aggregated metrics for this period: sessions=$session_count"
+  [[ $total_messages -gt 0 ]] && metrics_context+=", messages=$total_messages"
+  [[ $total_tool_uses -gt 0 ]] && metrics_context+=", tool_uses=$total_tool_uses"
+  [[ $total_files_touched -gt 0 ]] && metrics_context+=", files_touched=$total_files_touched"
+
   # Call Claude to generate rollup
   local body
   body="$(echo "$combined" | claude -p \
     --model haiku \
     --no-session-persistence \
     --system-prompt "$ROLLUP_PROMPT" \
-    "Generate a $level rollup for $date_label from these inputs." \
+    "Generate a $level rollup for $date_label from these inputs. $metrics_context" \
     2>/dev/null)" || {
     warn "Claude failed for $level rollup $date_label"
     return
@@ -114,6 +150,9 @@ level: $level
 date: $date_label
 projects: $unique_projects
 sessions: $session_count
+message_count: $total_messages
+tool_uses: $total_tool_uses
+files_touched: $total_files_touched
 patterns_active: $active_patterns
 ---
 

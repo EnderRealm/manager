@@ -19,6 +19,9 @@ config.json
 # Docker (user-specific)
 docker-compose.override.yml
 
+# Private data
+.private-journal/
+
 # OS
 .DS_Store
 Thumbs.db

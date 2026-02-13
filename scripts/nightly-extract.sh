@@ -77,9 +77,20 @@ EXTRACT_SCHEMA='{
         },
         "required": ["title", "description"]
       }
+    },
+    "friction": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": { "type": "string", "enum": ["buggy_code", "wrong_approach", "env_constraint", "misunderstood_intent", "excessive_iteration"] },
+          "description": { "type": "string" }
+        },
+        "required": ["category", "description"]
+      }
     }
   },
-  "required": ["decisions", "bugs", "discoveries", "incomplete_work", "workflow_suggestions"]
+  "required": ["decisions", "bugs", "discoveries", "incomplete_work", "workflow_suggestions", "friction"]
 }'
 
 EXTRACT_PROMPT='You are analyzing a coding session summary to extract actionable items.
@@ -91,11 +102,13 @@ Apply these thresholds strictly — prefer empty arrays to marginal items:
 - Discoveries: HIGHEST threshold. Only genuinely useful, non-obvious findings that should be added to project CLAUDE.md. Most "discoveries" are just learning what exists — skip those.
 - Incomplete work: MEDIUM threshold. Only if there is enough context to resume or create a follow-up. Skip exploratory dead ends.
 - Workflow suggestions: HIGHEST threshold. Only clearly beneficial changes to how work is done. These affect every future session.
+- Friction: LOW threshold. Classify every problem mentioned into one of: buggy_code (code had bugs requiring iteration), wrong_approach (wrong solution attempted), env_constraint (environmental issue like server not restarted), misunderstood_intent (Claude misunderstood what was wanted), excessive_iteration (too many rounds to reach solution). Include a brief description. This data is used for trend analysis — capture even minor friction.
 
 Rules:
 - For decisions, use the ticket_id from the summary. If no ticket is referenced, skip.
 - For bugs/discoveries/incomplete_work, set project to the project name from the summary frontmatter.
 - For workflow_suggestions, these always target the Powers repo (omit project field).
+- For friction, classify from the Problems section. If problems already have friction tags like (buggy_code), use those. Otherwise infer the category.
 - Return empty arrays when nothing meets the threshold. This is the expected common case.
 
 Here is the session summary:
