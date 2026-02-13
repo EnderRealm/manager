@@ -399,19 +399,14 @@ export function ServicesTable({
                 key={row.id}
                 onClick={() => {
                   const service = row.original;
-                  if (service.status === "running" || service.status === "unhealthy") {
-                    onSelectService(selectedServiceId === service.id ? null : service.id);
-                  }
+                  onSelectService(selectedServiceId === service.id ? null : service.id);
                 }}
                 style={{
                   backgroundColor:
                     selectedServiceId === row.original.id
                       ? colors.overlay
                       : "transparent",
-                  cursor:
-                    row.original.status === "running" || row.original.status === "unhealthy"
-                      ? "pointer"
-                      : "default",
+                  cursor: "pointer",
                 }}
               >
                 {row.getVisibleCells().map((cell) => (
@@ -470,7 +465,7 @@ function ActionButtons({
   onEdit,
   onDelete,
 }: ActionButtonsProps) {
-  const isRunning = service.status === "running";
+  const isRunning = service.status === "running" || service.status === "unhealthy";
   const isStopped = service.status === "stopped" || service.status === "crashed";
   const isTransitioning = service.status === "starting" || service.status === "restarting";
 

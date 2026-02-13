@@ -150,10 +150,6 @@ services.get("/projects/:id/services/:sid/logs", async (c) => {
     return c.json({ error: "Project not found" }, 404);
   }
 
-  if (!isTmuxAvailable()) {
-    return c.json({ error: "tmux not available" }, 503);
-  }
-
   const lines = parseInt(c.req.query("lines") ?? "200", 10);
   const logs = await captureLogs(projectId, serviceId, lines);
 

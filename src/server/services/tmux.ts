@@ -1,10 +1,27 @@
 import { spawn } from "node:child_process";
-import { logger } from "../lib/logger.ts";
+import fs from "node:fs";
+import path from "node:path";
+import { logger, logsDir } from "../lib/logger.ts";
 
 const SESSION_PREFIX = "mgr";
 
 function buildSessionName(projectId: string, serviceId: string): string {
   return `${SESSION_PREFIX}-${projectId}-${serviceId}`;
+}
+
+function getServiceLogPath(projectId: string, serviceId: string): string {
+  return path.join(logsDir, "services", projectId, `${serviceId}.log`);
+}
+
+function readLogFile(projectId: string, serviceId: string, lines: number): string {
+  const logPath = getServiceLogPath(projectId, serviceId);
+  try {
+    const content = fs.readFileSync(logPath, "utf-8");
+    const allLines = content.split("\n");
+    return allLines.slice(-lines).join("\n");
+  } catch {
+    return "";
+  }
 }
 
 async function execTmux(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
@@ -92,6 +109,20 @@ export async function createSession(
     logger.error({ sessionName, exitCode, stderr }, "Failed to create session");
     throw new Error(`Failed to create session: ${stderr}`);
   }
+
+  // Set up pipe-pane to persist output to a log file
+  const logPath = getServiceLogPath(projectId, serviceId);
+  const logDir = path.dirname(logPath);
+  fs.mkdirSync(logDir, { recursive: true });
+  fs.writeFileSync(logPath, "");
+
+  const { exitCode: pipeExit, stderr: pipeStderr } = await execTmux([
+    "pipe-pane", "-t", sessionName, `cat >> ${logPath}`,
+  ]);
+
+  if (pipeExit !== 0) {
+    logger.warn({ sessionName, pipeStderr }, "Failed to set up pipe-pane");
+  }
 }
 
 export async function killSession(projectId: string, serviceId: string): Promise<void> {
@@ -136,7 +167,7 @@ export async function captureLogs(
   const sessionName = buildSessionName(projectId, serviceId);
 
   if (!(await sessionExists(projectId, serviceId))) {
-    return "";
+    return readLogFile(projectId, serviceId, lines);
   }
 
   const { stdout, exitCode } = await execTmux([

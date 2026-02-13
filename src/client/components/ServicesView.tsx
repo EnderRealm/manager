@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useServices, type Service } from "../hooks/useServices.ts";
 import { ServiceCreateModal } from "./ServiceCreateModal.tsx";
@@ -51,6 +51,13 @@ export function ServicesView() {
     });
   };
 
+  // Default to first service when none is selected
+  useEffect(() => {
+    if (selectedServiceId === null && services.length > 0) {
+      setSelectedServiceId(services[0]!.id);
+    }
+  }, [services, selectedServiceId]);
+
   const selectedService = services.find((s) => s.id === selectedServiceId);
 
   if (isLoading) {
@@ -85,7 +92,7 @@ export function ServicesView() {
     );
   }
 
-  const showLogs = selectedService && (selectedService.status === "running" || selectedService.status === "unhealthy");
+  const showLogs = !!selectedService;
 
   return (
     <div
@@ -170,6 +177,7 @@ export function ServicesView() {
               projectId={projectId!}
               serviceId={selectedService.id}
               serviceName={selectedService.name}
+              serviceStatus={selectedService.status}
             />
           )}
         </div>

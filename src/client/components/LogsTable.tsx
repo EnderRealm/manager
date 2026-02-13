@@ -18,6 +18,7 @@ interface LogsTableProps {
   projectId: string;
   serviceId: string;
   serviceName: string;
+  serviceStatus: string;
 }
 
 interface LogsResponse {
@@ -199,7 +200,7 @@ const defaultColumnWidths: Record<string, number> = {
   message: 600,
 };
 
-export function LogsTable({ projectId, serviceId, serviceName }: LogsTableProps) {
+export function LogsTable({ projectId, serviceId, serviceName, serviceStatus }: LogsTableProps) {
   const [copied, setCopied] = useState(false);
   const { preferences, updatePreferences } = useTablePreferences("logsTable");
 
@@ -227,7 +228,7 @@ export function LogsTable({ projectId, serviceId, serviceName }: LogsTableProps)
       if (!res.ok) throw new Error("Failed to fetch logs");
       return res.json();
     },
-    refetchInterval: 2000,
+    refetchInterval: (serviceStatus === "running" || serviceStatus === "starting" || serviceStatus === "unhealthy") ? 2000 : false,
   });
 
   const parsedLines = useMemo(() => {

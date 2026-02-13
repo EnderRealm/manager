@@ -5,7 +5,7 @@ import os from "node:os";
 
 const isProd = process.env.NODE_ENV === "production";
 
-const logsDir = isProd
+export const logsDir = isProd
   ? path.join(os.homedir(), "Library", "Logs", "Manager")
   : path.join(process.cwd(), "logs");
 
