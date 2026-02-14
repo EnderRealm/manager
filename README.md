@@ -33,6 +33,20 @@ cp config.example.json config.json
 
 The config file stores your projects and services. It's gitignored so your local setup won't be committed.
 
+### Learnings Repo
+
+The nightly pipeline (`scripts/nightly-pipeline.sh`) and its component scripts summarize Claude Code sessions, detect patterns, and generate rollups — all stored in a separate git repo. Clone it before running any of the pipeline scripts:
+
+```bash
+git clone <your-learnings-repo-url> ~/code/learnings
+```
+
+To use a different path, set `LEARNINGS_REPO`:
+
+```bash
+export LEARNINGS_REPO=/path/to/your/learnings
+```
+
 ### Environment Variables
 
 Copy the example env file:
@@ -42,6 +56,9 @@ cp .example.env .env
 
 Required for Claude Agent integration:
 - `ANTHROPIC_API_KEY` - Your Anthropic API key
+
+Optional:
+- `LEARNINGS_REPO` - Path to the learnings git repo (default: `~/code/learnings`)
 
 ## Development
 
