@@ -266,17 +266,53 @@ generate_annual() {
 }
 
 # --- Main: determine what to generate based on current date ---
+# Use local time (not UTC) — the nightly runs after midnight local time,
+# so "yesterday" is the completed day we want to roll up.
 
-today="$(date -u +%Y-%m-%d)"
-current_year="$(date -u +%Y)"
-current_month="$(date -u +%Y-%m)"
-current_week="$(date -u +%V)"
-current_year_iso="$(date -u +%G)"
-day_of_week="$(date -u +%u)"  # 1=Monday, 7=Sunday
+today="$(date +%Y-%m-%d)"
+yesterday="$(date -v-1d +%Y-%m-%d 2>/dev/null || date -d 'yesterday' +%Y-%m-%d)"
+current_year="$(date +%Y)"
+current_month="$(date +%Y-%m)"
+current_week="$(date +%V)"
+current_year_iso="$(date +%G)"
+day_of_week="$(date +%u)"  # 1=Monday, 7=Sunday
 
-# Always: regenerate today's daily and current week's weekly
-generate_daily "$today"
+# Backfill: find all dates with session summaries that lack a daily rollup
+log "Checking for missing daily rollups..."
+declare -A session_dates
+while IFS= read -r f; do
+  fdate="$(head -20 "$f" | grep '^date:' | sed 's/^date: *//' | tr -d ' ')" || true
+  if [[ -n "$fdate" && "$fdate" != "$today" ]]; then
+    session_dates["$fdate"]=1
+  fi
+done < <(find "$LEARNINGS_REPO/sessions" -name '*.md' -type f 2>/dev/null)
+
+for d in "${!session_dates[@]}"; do
+  if [[ ! -f "$LEARNINGS_REPO/rollups/daily/$d.md" ]]; then
+    log "Backfilling daily rollup: $d"
+    generate_daily "$d"
+  fi
+done
+
+# Generate yesterday's daily (the completed day)
+generate_daily "$yesterday"
+
+# Regenerate current week's weekly
 generate_weekly "$current_year_iso" "$current_week"
+
+# Also regenerate any prior weeks that have daily rollups but no weekly
+for daily_file in "$LEARNINGS_REPO/rollups/daily"/*.md; do
+  [[ -f "$daily_file" ]] || continue
+  daily_date="$(basename "$daily_file" .md)"
+  file_week="$(date -jf '%Y-%m-%d' "$daily_date" '+%G-W%V' 2>/dev/null || date -d "$daily_date" '+%G-W%V' 2>/dev/null)" || continue
+  if [[ ! -f "$LEARNINGS_REPO/rollups/weekly/$file_week.md" ]]; then
+    yw="${file_week%-W*}"
+    wn="${file_week#*-W}"
+    wn="${wn#0}"  # strip leading zero
+    log "Backfilling weekly rollup: $file_week"
+    generate_weekly "$yw" "$wn"
+  fi
+done
 
 # On Sundays: also regenerate current month's monthly
 if [[ "$day_of_week" -eq 7 ]]; then
@@ -284,7 +320,7 @@ if [[ "$day_of_week" -eq 7 ]]; then
 fi
 
 # On 1st of month: also regenerate current year's annual
-if [[ "$(date -u +%d)" == "01" ]]; then
+if [[ "$(date +%d)" == "01" ]]; then
   generate_annual "$current_year"
 fi
 
