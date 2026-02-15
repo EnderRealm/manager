@@ -319,6 +319,9 @@ export function Layout() {
             <NavItem to="/" icon="⊞">
               Projects
             </NavItem>
+            <NavItem to="/insights" icon="◈">
+              Insights
+            </NavItem>
           </NavSection>
 
           {currentProject && (
