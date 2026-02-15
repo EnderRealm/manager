@@ -10,6 +10,7 @@ import { config as configRoutes } from "./routes/config.ts";
 import { events } from "./routes/events.ts";
 import { services } from "./routes/services.ts";
 import { agents } from "./routes/agents.ts";
+import { activity } from "./routes/activity.ts";
 import { initialize as initProcessManager } from "./services/process-manager.ts";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -48,6 +49,7 @@ app.route("/api", configRoutes);
 app.route("/api", events);
 app.route("/api", services);
 app.route("/api", agents);
+app.route("/api", activity);
 
 if (isProd) {
   const distDir = path.join(process.cwd(), "dist", "client");
