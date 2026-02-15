@@ -151,6 +151,23 @@ PYEOF
 
     # Extract quantitative metrics from raw JSONL
     message_count="$(grep -c '"type":"user"\|"type":"assistant"' "$jsonl_file" 2>/dev/null || echo "0")"
+
+    # Extract token counts from assistant message usage fields
+    read -r input_tokens output_tokens cache_read_tokens cache_creation_tokens < <(python3 -c "
+import json, sys
+it, ot, crt, cct = 0, 0, 0, 0
+for line in open(sys.argv[1]):
+    try:
+        obj = json.loads(line)
+        if obj.get('type') == 'assistant':
+            u = obj.get('message', {}).get('usage', {})
+            it += u.get('input_tokens', 0)
+            ot += u.get('output_tokens', 0)
+            crt += u.get('cache_read_input_tokens', 0)
+            cct += u.get('cache_creation_input_tokens', 0)
+    except: pass
+print(it, ot, crt, cct)
+" "$jsonl_file" 2>/dev/null || echo "0 0 0 0")
     tool_uses="$(python3 -c "
 import json, sys
 count = 0
@@ -265,6 +282,10 @@ tickets: $tickets
 message_count: $message_count
 tool_uses: $tool_uses
 files_touched: $files_touched
+input_tokens: $input_tokens
+output_tokens: $output_tokens
+cache_read_tokens: $cache_read_tokens
+cache_creation_tokens: $cache_creation_tokens
 processed: false
 ---
 
