@@ -5,6 +5,8 @@ import { logger } from "../lib/logger.ts";
 
 const LEARNINGS_ROOT = join(homedir(), "code", "learnings");
 const SESSIONS_DIR = join(LEARNINGS_ROOT, "sessions");
+const PATTERNS_DIR = join(LEARNINGS_ROOT, "patterns");
+const ROLLUPS_DIR = join(LEARNINGS_ROOT, "rollups");
 
 export interface SessionFrontmatter {
   project: string;
@@ -55,7 +57,12 @@ export function parseFrontmatter(content: string): {
       frontmatter[key] = raw
         .slice(1, -1)
         .split(",")
-        .map((s) => s.trim().replace(/^['"]|['"]$/g, ""))
+        .map((s) =>
+          s
+            .trim()
+            .replace(/^['"]|['"]$/g, "")
+            .replace(/^\\"|\\"$/g, "")
+        )
         .filter(Boolean);
       continue;
     }
@@ -207,4 +214,183 @@ export function getActivityData(
   }
 
   return days;
+}
+
+// --- Patterns ---
+
+export interface Pattern {
+  id: string;
+  status: string;
+  description: string;
+  evidence: string[];
+  suggestedAction: string;
+  occurrences: number;
+  projects: string[];
+  firstSeen: string;
+  lastSeen: string;
+}
+
+function extractSection(body: string, heading: string): string {
+  const regex = new RegExp(`###\\s+${heading}\\s*\\n([\\s\\S]*?)(?=\\n###\\s|$)`);
+  const match = body.match(regex);
+  return match ? match[1].trim() : "";
+}
+
+function extractBulletList(text: string): string[] {
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const line of text.split("\n")) {
+    const trimmed = line.replace(/^[-*]\s+/, "").trim();
+    if (trimmed && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      results.push(trimmed);
+    }
+  }
+  return results;
+}
+
+export function getPatterns(statusFilter?: string): Pattern[] {
+  const patterns: Pattern[] = [];
+
+  try {
+    const files = readdirSync(PATTERNS_DIR).filter((f) =>
+      f.startsWith("ptr-") && f.endsWith(".md")
+    );
+
+    for (const file of files) {
+      try {
+        const content = readFileSync(join(PATTERNS_DIR, file), "utf-8");
+        const { frontmatter, body } = parseFrontmatter(content);
+
+        const fm = frontmatter as Record<string, unknown>;
+        const pattern: Pattern = {
+          id: (fm.id as string) || file.replace(".md", ""),
+          status: (fm.status as string) || "observation",
+          description: extractSection(body, "Description"),
+          evidence: extractBulletList(extractSection(body, "Evidence")),
+          suggestedAction: extractSection(body, "Suggested Action"),
+          occurrences: (fm.occurrences as number) || 0,
+          projects: (fm.projects as string[]) || [],
+          firstSeen: (fm.first_seen as string) || "",
+          lastSeen: (fm.last_seen as string) || "",
+        };
+
+        if (!statusFilter || pattern.status === statusFilter) {
+          patterns.push(pattern);
+        }
+      } catch (err) {
+        logger.warn({ file }, "Failed to parse pattern file");
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to read patterns directory");
+  }
+
+  return patterns.sort((a, b) => b.occurrences - a.occurrences);
+}
+
+// --- Learnings (rollups + recent session discoveries/decisions) ---
+
+export interface RollupData {
+  level: string;
+  date: string;
+  projects: string[];
+  sessions: number;
+  messageCount: number;
+  toolUses: number;
+  filesTouched: number;
+  patternsActive: string[];
+  body: string;
+}
+
+export interface LearningEntry {
+  text: string;
+  project: string;
+  date: string;
+}
+
+export interface LearningsResponse {
+  rollup: RollupData | null;
+  recentDiscoveries: LearningEntry[];
+  recentDecisions: LearningEntry[];
+}
+
+function loadLatestRollup(period: "week" | "month"): RollupData | null {
+  const subdir = period === "week" ? "weekly" : period === "month" ? "monthly" : "daily";
+  const dir = join(ROLLUPS_DIR, subdir);
+
+  try {
+    const files = readdirSync(dir)
+      .filter((f) => f.endsWith(".md"))
+      .sort()
+      .reverse();
+
+    if (files.length === 0) return null;
+
+    const content = readFileSync(join(dir, files[0]), "utf-8");
+    const { frontmatter, body } = parseFrontmatter(content);
+    const fm = frontmatter as Record<string, unknown>;
+
+    return {
+      level: (fm.level as string) || subdir,
+      date: (fm.date as string) || files[0].replace(".md", ""),
+      projects: (fm.projects as string[]) || [],
+      sessions: (fm.sessions as number) || 0,
+      messageCount: (fm.message_count as number) || 0,
+      toolUses: (fm.tool_uses as number) || 0,
+      filesTouched: (fm.files_touched as number) || 0,
+      patternsActive: (fm.patterns_active as string[]) || [],
+      body,
+    };
+  } catch (err) {
+    logger.warn({ period }, "Failed to load rollup");
+    return null;
+  }
+}
+
+function extractSessionEntries(
+  section: string,
+  sessions: SessionSummary[],
+  limit: number
+): LearningEntry[] {
+  const entries: LearningEntry[] = [];
+
+  // Sort sessions by date descending
+  const sorted = [...sessions].sort(
+    (a, b) => (b.frontmatter.date || "").localeCompare(a.frontmatter.date || "")
+  );
+
+  for (const session of sorted) {
+    if (entries.length >= limit) break;
+
+    const sectionText = extractSection(session.body, section);
+    if (!sectionText) continue;
+
+    for (const line of sectionText.split("\n")) {
+      if (entries.length >= limit) break;
+      const trimmed = line.replace(/^[-*]\s+/, "").trim();
+      if (trimmed && trimmed !== "None." && trimmed !== "None") {
+        entries.push({
+          text: trimmed,
+          project: session.frontmatter.project,
+          date: session.frontmatter.date,
+        });
+      }
+    }
+  }
+
+  return entries;
+}
+
+export function getLearnings(
+  period: "week" | "month" = "week"
+): LearningsResponse {
+  const rollup = loadLatestRollup(period);
+  const sessions = loadAllSessions();
+
+  return {
+    rollup,
+    recentDiscoveries: extractSessionEntries("Discoveries", sessions, 10),
+    recentDecisions: extractSessionEntries("Decisions", sessions, 10),
+  };
 }
