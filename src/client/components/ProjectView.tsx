@@ -40,7 +40,7 @@ export function ProjectView() {
       </div>
 
       {/* View content */}
-      <div style={{ flex: 1, overflow: "hidden" }}>
+      <div style={{ flex: 1, overflow: "auto" }}>
         {activeView === "board" && <KanbanBoard />}
         {activeView === "table" && <TableView />}
         {activeView === "services" && <ServicesView />}

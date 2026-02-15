@@ -97,7 +97,7 @@ export const buttonDanger = {
 
 export const inputBase = {
   padding: "8px 12px",
-  fontSize: "14px",
+  fontSize: "16px",
   backgroundColor: colors.surface,
   color: colors.textPrimary,
   border: `1px solid ${colors.border}`,

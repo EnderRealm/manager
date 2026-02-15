@@ -65,7 +65,7 @@ export function SlideOutPanel({
         style={{
           position: "relative",
           width,
-          maxWidth: "100vw",
+          maxWidth: "100%",
           height: "100%",
           backgroundColor: colors.canvas,
           borderLeft: `1px solid ${colors.border}`,

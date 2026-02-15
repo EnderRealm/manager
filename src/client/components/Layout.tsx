@@ -199,6 +199,7 @@ export function Layout() {
           padding: "0 16px",
           gap: 12,
           flexShrink: 0,
+          overflow: "hidden",
         }}
       >
         {isMobile && (
@@ -262,9 +263,10 @@ export function Layout() {
             display: "flex",
             alignItems: "center",
             gap: 8,
+            flexShrink: 0,
           }}
         >
-          <span>Search...</span>
+          {!isMobile && <span>Search...</span>}
           <span
             style={{
               backgroundColor: colors.surfaceRaised,
