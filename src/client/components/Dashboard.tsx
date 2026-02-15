@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useProjects } from "../hooks/useProjects.ts";
 import { ProjectTile } from "./ProjectTile.tsx";
 import { ProjectCreateModal } from "./ProjectCreateModal.tsx";
+import { ActivityHeatmap } from "./ActivityHeatmap.tsx";
 import { colors, fonts, buttonPrimary } from "../theme.ts";
 
 export function Dashboard() {
@@ -56,6 +57,8 @@ export function Dashboard() {
           + add project
         </button>
       </div>
+
+      <ActivityHeatmap />
 
       {!projects || projects.length === 0 ? (
         <div
