@@ -3,6 +3,7 @@ import { useProjects } from "../hooks/useProjects.ts";
 import { ProjectTile } from "./ProjectTile.tsx";
 import { ProjectCreateModal } from "./ProjectCreateModal.tsx";
 import { ActivityHeatmap } from "./ActivityHeatmap.tsx";
+import { LearningSummary } from "./LearningSummary.tsx";
 import { colors, fonts, buttonPrimary } from "../theme.ts";
 
 export function Dashboard() {
@@ -59,6 +60,8 @@ export function Dashboard() {
       </div>
 
       <ActivityHeatmap />
+
+      <LearningSummary />
 
       {!projects || projects.length === 0 ? (
         <div
