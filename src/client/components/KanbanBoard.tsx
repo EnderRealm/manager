@@ -847,7 +847,7 @@ export function KanbanBoard() {
         </div>
 
         {/* Ticket list */}
-        <div style={{ overflow: "hidden" }}>
+        <div>
           {getTicketsForTab(activeTab).length === 0 ? (
             <div
               style={{
