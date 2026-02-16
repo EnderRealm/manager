@@ -1238,6 +1238,7 @@ function SwipeableTicketCard({
         position: "relative",
         overflow: "hidden",
         marginBottom: 8,
+        touchAction: "pan-y",
       }}
     >
       {/* Swipe indicator background */}
