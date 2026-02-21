@@ -35,7 +35,7 @@ The config file stores your projects and services. It's gitignored so your local
 
 ### Learnings Repo
 
-The nightly pipeline (`scripts/nightly-pipeline.sh`) and its component scripts summarize Claude Code sessions, detect patterns, and generate rollups — all stored in a separate git repo. Clone it before running any of the pipeline scripts:
+The learnings pipeline scripts summarize Claude Code sessions, detect patterns, and generate rollups — all stored in a separate git repo. Clone it before running any of the pipeline scripts:
 
 ```bash
 git clone <your-learnings-repo-url> ~/code/learnings
@@ -46,6 +46,42 @@ To use a different path, set `LEARNINGS_REPO`:
 ```bash
 export LEARNINGS_REPO=/path/to/your/learnings
 ```
+
+### Nightly Pipelines
+
+Two launchd services handle nightly processing:
+
+| Pipeline | Script | Schedule | Install on |
+|----------|--------|----------|------------|
+| **Session** | `session-pipeline.sh` | 2 AM | All machines |
+| **Analysis** | `analysis-pipeline.sh` | 3 AM | Mac Studio only |
+
+The **session pipeline** catches up on unsummarized Claude Code sessions from the local machine and extracts actionable items. It's idempotent — safe to run on every machine.
+
+The **analysis pipeline** runs pattern detection and rollup generation across all session data. It makes Claude API calls on every run, so it should only run on one machine.
+
+```bash
+# Inspect generated plists
+scripts/install-nightly.sh
+
+# Mac Studio: install both pipelines
+scripts/install-nightly.sh --install
+
+# Laptop: install session pipeline only
+scripts/install-nightly.sh --install-sessions
+
+# Uninstall all
+scripts/install-nightly.sh --uninstall
+```
+
+Logs:
+- `~/Library/Logs/Manager/session-pipeline.log`
+- `~/Library/Logs/Manager/analysis-pipeline.log`
+
+Prerequisites: `claude` and `tk` on PATH, `~/code/learnings` repo cloned.
+
+> **Migration:** If you have the old `com.smacbeth.learnings-nightly` label loaded, unload it:
+> `launchctl bootout gui/$(id -u)/com.smacbeth.learnings-nightly`
 
 ### Environment Variables
 
