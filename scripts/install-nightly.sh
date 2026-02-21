@@ -176,6 +176,67 @@ uninstall() {
     echo "Plists removed."
 }
 
+list_status() {
+    local uid
+    uid=$(id -u)
+
+    local G=$'\033[32m' R=$'\033[31m' Y=$'\033[33m' D=$'\033[2m' B=$'\033[1m' N=$'\033[0m'
+
+    for label in "$SESSION_LABEL" "$ANALYSIS_LABEL"; do
+        local plist="$LAUNCH_DIR/$label.plist"
+        local installed=false loaded=false exit_info=""
+
+        [[ -f "$plist" ]] && installed=true
+
+        if launchctl print "gui/$uid/$label" &>/dev/null; then
+            loaded=true
+            exit_info="$(launchctl print "gui/$uid/$label" 2>/dev/null | grep 'last exit code' | sed 's/.*= //')" || true
+        fi
+
+        # Status icon
+        local icon
+        if $loaded; then
+            icon="${G}●${N}"
+        elif $installed; then
+            icon="${Y}○${N}"
+        else
+            icon="${D}·${N}"
+        fi
+
+        # Short name
+        local short="${label#com.manager.}"
+        printf "  ${icon} ${B}%-20s${N}" "$short"
+
+        if $loaded; then
+            printf " ${G}loaded${N}"
+        elif $installed; then
+            printf " ${Y}installed but not loaded${N}"
+        else
+            printf " ${D}not installed${N}"
+        fi
+        echo ""
+
+        if [[ -n "$exit_info" ]]; then
+            printf "    ${D}last run: %s${N}\n" "$exit_info"
+        fi
+
+        if $installed; then
+            local log_file
+            log_file="$(grep -A1 'StandardOutPath' "$plist" 2>/dev/null | grep '<string>' | sed 's/.*<string>//;s/<\/string>.*//')" || true
+            if [[ -n "$log_file" ]]; then
+                printf "    ${D}log: %s${N}\n" "$log_file"
+            fi
+        fi
+    done
+
+    # Check for legacy label
+    if launchctl print "gui/$uid/$OLD_LABEL" &>/dev/null; then
+        echo ""
+        printf "  ${R}●${N} ${B}%-20s${N} ${R}legacy — should be removed${N}\n" "$OLD_LABEL"
+        printf "    run: launchctl bootout gui/$uid/$OLD_LABEL\n"
+    fi
+}
+
 case "$ACTION" in
     --install)
         install_all
@@ -185,6 +246,9 @@ case "$ACTION" in
         ;;
     --uninstall)
         uninstall
+        ;;
+    --list)
+        list_status
         ;;
     "")
         echo "=== $SESSION_LABEL.plist (all machines) ==="
@@ -198,11 +262,12 @@ case "$ACTION" in
         check_old_label
         ;;
     *)
-        echo "Usage: $(basename "$0") [--install|--install-sessions|--uninstall]"
+        echo "Usage: $(basename "$0") [--install|--install-sessions|--uninstall|--list]"
         echo "  No args:            print plists to stdout"
         echo "  --install:          install both pipelines (Mac Studio)"
         echo "  --install-sessions: install session pipeline only (laptop)"
         echo "  --uninstall:        unload and remove all pipelines"
+        echo "  --list:             show installed pipelines and status"
         exit 1
         ;;
 esac
