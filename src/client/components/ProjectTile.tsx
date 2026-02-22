@@ -170,9 +170,11 @@ function SyncStatusIndicator({ syncStatus }: { syncStatus: SyncStatus }) {
 
   if (syncStatus.state === "synced") return null;
 
-  const isPending = syncStatus.state === "pending";
-  const color = isPending ? colors.textMuted : colors.warning;
-  const label = isPending ? "Syncing..." : `Sync error: ${syncStatus.error ?? "unknown"}`;
+  const isSkipped = syncStatus.state === "skipped";
+  const color = isSkipped ? colors.textMuted : colors.warning;
+  const label = isSkipped
+    ? `Pull skipped: ${syncStatus.reason ?? "local changes"}`
+    : `Sync error: ${syncStatus.error ?? "unknown"}`;
 
   return (
     <div
@@ -184,10 +186,10 @@ function SyncStatusIndicator({ syncStatus }: { syncStatus: SyncStatus }) {
         style={{
           fontSize: 12,
           color,
-          opacity: isPending ? 0.7 : 1,
+          opacity: isSkipped ? 0.7 : 1,
         }}
       >
-        {isPending ? "⟳" : "⚠"}
+        {isSkipped ? "⏸" : "⚠"}
       </span>
       {showTooltip && (
         <div

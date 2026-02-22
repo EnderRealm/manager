@@ -13,7 +13,7 @@ export interface GitStatus {
 export async function execGit(
   projectPath: string,
   args: string[]
-): Promise<{ stdout: string; exitCode: number }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve) => {
     const proc = spawn("git", args, {
       cwd: projectPath,
@@ -21,17 +21,22 @@ export async function execGit(
     });
 
     let stdout = "";
+    let stderr = "";
 
     proc.stdout.on("data", (data) => {
       stdout += data.toString();
     });
 
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
     proc.on("error", () => {
-      resolve({ stdout: "", exitCode: 1 });
+      resolve({ stdout: "", stderr: "", exitCode: 1 });
     });
 
     proc.on("close", (exitCode) => {
-      resolve({ stdout, exitCode: exitCode ?? 1 });
+      resolve({ stdout, stderr, exitCode: exitCode ?? 1 });
     });
   });
 }
