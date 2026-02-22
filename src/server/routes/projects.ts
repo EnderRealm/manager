@@ -12,6 +12,7 @@ import {
   isTmuxAvailable,
   getAllServices,
 } from "../services/process-manager.ts";
+import { getSyncStatus, type SyncStatus } from "../services/git-sync.ts";
 
 export interface TicketCounts {
   inProgress: number;
@@ -52,6 +53,7 @@ export interface ProjectSummary {
   ticketCounts: TicketCounts;
   serviceStatus: ServiceAggregateStatus;
   serviceDetails?: { id: string; name: string; status: string }[];
+  syncStatus: SyncStatus;
 }
 
 // Remap commonly misidentified languages
@@ -192,6 +194,7 @@ async function getProjectSummary(
     ticketCounts,
     serviceStatus,
     serviceDetails,
+    syncStatus: getSyncStatus(name),
   };
 }
 

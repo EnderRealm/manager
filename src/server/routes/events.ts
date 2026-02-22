@@ -3,7 +3,7 @@ import { streamSSE } from "hono/streaming";
 import { loadConfig } from "../lib/config.ts";
 import { watchProject, onTicketChange, type TicketChangeEvent } from "../services/watcher.ts";
 import { onStatusChange, type ServiceStatusEvent } from "../services/process-manager.ts";
-import { gitPull } from "../services/git-sync.ts";
+import { gitPull, onSyncStatusChange } from "../services/git-sync.ts";
 import { logger } from "../lib/logger.ts";
 
 const events = new Hono();
@@ -50,10 +50,21 @@ events.get("/projects/:id/events", async (c) => {
       });
     });
 
+    const unsubscribeSync = onSyncStatusChange((syncProjectId, status) => {
+      if (closed) return;
+      if (syncProjectId !== projectId) return;
+
+      stream.writeSSE({
+        event: "sync-status",
+        data: JSON.stringify({ projectId: syncProjectId, ...status }),
+      });
+    });
+
     stream.onAbort(() => {
       closed = true;
       unsubscribeTickets();
       unsubscribeServices();
+      unsubscribeSync();
       logger.info({ projectId }, "SSE client disconnected");
     });
 
