@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { loadConfig } from "../lib/config.ts";
+import { scheduleSyncForProject } from "../services/git-sync.ts";
 import {
   getTickets,
   getReadyTickets,
@@ -97,6 +98,7 @@ tickets.post("/projects/:id/tickets", async (c) => {
 
   const ticketId = await createTicket(projectPath, body);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket, 201);
 });
@@ -116,6 +118,7 @@ tickets.patch("/projects/:id/tickets/:ticketId", async (c) => {
   const body = await c.req.json<UpdateTicketInput>();
 
   await updateTicket(projectPath, ticketId, body);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   const updated = await getTicket(projectPath, ticketId);
   return c.json(updated);
@@ -134,6 +137,7 @@ tickets.delete("/projects/:id/tickets/:ticketId", async (c) => {
   }
 
   await deleteTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
   return c.json({ success: true });
 });
 
@@ -146,6 +150,7 @@ tickets.post("/projects/:id/tickets/:ticketId/start", async (c) => {
   const ticketId = c.req.param("ticketId");
   await startTicket(projectPath, ticketId);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket);
 });
@@ -159,6 +164,7 @@ tickets.post("/projects/:id/tickets/:ticketId/close", async (c) => {
   const ticketId = c.req.param("ticketId");
   await closeTicket(projectPath, ticketId);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket);
 });
@@ -172,6 +178,7 @@ tickets.post("/projects/:id/tickets/:ticketId/reopen", async (c) => {
   const ticketId = c.req.param("ticketId");
   await reopenTicket(projectPath, ticketId);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket);
 });
@@ -190,6 +197,7 @@ tickets.post("/projects/:id/tickets/:ticketId/deps", async (c) => {
 
   await addDependency(projectPath, ticketId, body.blockerId);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket);
 });
@@ -205,6 +213,7 @@ tickets.delete("/projects/:id/tickets/:ticketId/deps/:blockerId", async (c) => {
 
   await removeDependency(projectPath, ticketId, blockerId);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket);
 });
@@ -224,6 +233,7 @@ tickets.post("/projects/:id/tickets/:ticketId/parent", async (c) => {
 
   await setParent(projectPath, ticketId, body.parentId);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket);
 });
@@ -238,6 +248,7 @@ tickets.delete("/projects/:id/tickets/:ticketId/parent", async (c) => {
 
   await clearParent(projectPath, ticketId);
   const ticket = await getTicket(projectPath, ticketId);
+  scheduleSyncForProject(c.req.param("id"), projectPath);
 
   return c.json(ticket);
 });
