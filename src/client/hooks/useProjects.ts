@@ -42,6 +42,12 @@ export interface ServiceDetail {
   status: string;
 }
 
+export interface SyncStatus {
+  state: "synced" | "pending" | "error";
+  error?: string;
+  lastSynced?: number;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -52,6 +58,7 @@ export interface ProjectSummary {
   ticketCounts: TicketCounts;
   serviceStatus: ServiceAggregateStatus;
   serviceDetails?: ServiceDetail[];
+  syncStatus: SyncStatus;
 }
 
 async function fetchProjects(): Promise<ProjectSummary[]> {

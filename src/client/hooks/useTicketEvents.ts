@@ -53,6 +53,11 @@ export function useTicketEvents(projectId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ["services", projectId] });
     });
 
+    eventSource.addEventListener("sync-status", (e) => {
+      console.log("[SSE] Sync status change:", JSON.parse(e.data));
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    });
+
     eventSource.addEventListener("ping", () => {
       // Keep-alive ping, no action needed
     });

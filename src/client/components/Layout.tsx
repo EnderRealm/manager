@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { NavLink, Outlet, useParams, useLocation, useNavigate } from "react-router-dom";
 import { colors, fonts, radius } from "../theme.ts";
-import { useProjects, type ProjectSummary } from "../hooks/useProjects.ts";
+import { useProjects, type ProjectSummary, type SyncStatus } from "../hooks/useProjects.ts";
 import { useTicketEvents } from "../hooks/useTicketEvents.ts";
 
 const sidebarWidth = 240;
@@ -162,6 +162,49 @@ function ProjectSwitcher({
   );
 }
 
+function HeaderSyncIndicator({ syncStatus }: { syncStatus: SyncStatus }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  if (syncStatus.state === "synced") return null;
+
+  const isPending = syncStatus.state === "pending";
+  const color = isPending ? colors.textMuted : colors.warning;
+  const label = isPending ? "Syncing..." : `Sync error: ${syncStatus.error ?? "unknown"}`;
+
+  return (
+    <div
+      style={{ position: "relative", display: "flex", alignItems: "center" }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <span style={{ fontSize: 13, color, opacity: isPending ? 0.7 : 1 }}>
+        {isPending ? "⟳" : "⚠"}
+      </span>
+      {showTooltip && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            marginTop: 8,
+            padding: "6px 10px",
+            backgroundColor: colors.surfaceRaised,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.sm,
+            fontSize: 12,
+            color: colors.textSecondary,
+            whiteSpace: "pre",
+            zIndex: 200,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Layout() {
   const { id: projectId, ticketId } = useParams();
   const { data: projects } = useProjects();
@@ -231,6 +274,7 @@ export function Layout() {
           <>
             <span style={{ color: colors.textMuted }}>/</span>
             <ProjectSwitcher currentProject={currentProject} projects={projects} />
+            <HeaderSyncIndicator syncStatus={currentProject.syncStatus} />
           </>
         )}
 

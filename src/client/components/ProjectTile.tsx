@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ProjectSummary, ServiceAggregateStatus } from "../hooks/useProjects.ts";
+import type { ProjectSummary, ServiceAggregateStatus, SyncStatus } from "../hooks/useProjects.ts";
 import { colors, fonts, radius } from "../theme.ts";
 
 const serviceStatusColors: Record<ServiceAggregateStatus, string> = {
@@ -165,6 +165,55 @@ function ServiceStatusIndicator({
   );
 }
 
+function SyncStatusIndicator({ syncStatus }: { syncStatus: SyncStatus }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  if (syncStatus.state === "synced") return null;
+
+  const isPending = syncStatus.state === "pending";
+  const color = isPending ? colors.textMuted : colors.warning;
+  const label = isPending ? "Syncing..." : `Sync error: ${syncStatus.error ?? "unknown"}`;
+
+  return (
+    <div
+      style={{ position: "relative" }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <span
+        style={{
+          fontSize: 12,
+          color,
+          opacity: isPending ? 0.7 : 1,
+        }}
+      >
+        {isPending ? "⟳" : "⚠"}
+      </span>
+      {showTooltip && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            marginTop: 4,
+            padding: "6px 10px",
+            backgroundColor: colors.surfaceRaised,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.sm,
+            fontSize: 12,
+            color: colors.textSecondary,
+            whiteSpace: "pre",
+            zIndex: 100,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProjectTile({ project }: ProjectTileProps) {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
@@ -199,6 +248,7 @@ export function ProjectTile({ project }: ProjectTileProps) {
             details={project.serviceDetails}
           />
         )}
+        <SyncStatusIndicator syncStatus={project.syncStatus} />
       </div>
 
       <div style={{ color: colors.textMuted, fontSize: "12px", marginTop: "4px", fontFamily: fonts.mono }}>
