@@ -43,7 +43,7 @@ export interface ServiceDetail {
 }
 
 export interface SyncStatus {
-  state: "synced" | "skipped" | "error";
+  state: "synced" | "pending" | "skipped" | "error";
   error?: string;
   reason?: string;
   lastSynced?: number;
