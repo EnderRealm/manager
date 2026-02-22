@@ -41,4 +41,7 @@ UID_NUM=$(id -u)
 launchctl kickstart -k "gui/$UID_NUM/com.manager.server"
 
 log "Deploy complete (now at ${REMOTE:0:7})"
+
+osascript -e "display notification \"Deployed ${REMOTE:0:7}\" with title \"Manager\" sound name \"Glass\"" 2>/dev/null || true
+
 exit 0
