@@ -3,6 +3,7 @@ import { streamSSE } from "hono/streaming";
 import { loadConfig } from "../lib/config.ts";
 import { watchProject, onTicketChange, type TicketChangeEvent } from "../services/watcher.ts";
 import { onStatusChange, type ServiceStatusEvent } from "../services/process-manager.ts";
+import { gitPull } from "../services/git-sync.ts";
 import { logger } from "../lib/logger.ts";
 
 const events = new Hono();
@@ -21,6 +22,7 @@ events.get("/projects/:id/events", async (c) => {
     return c.json({ error: "Project not found" }, 404);
   }
 
+  await gitPull(projectPath, projectId);
   watchProject(projectId, projectPath);
 
   return streamSSE(c, async (stream) => {
