@@ -10,7 +10,7 @@ export interface GitStatus {
   untracked: number;
 }
 
-async function execGit(
+export async function execGit(
   projectPath: string,
   args: string[]
 ): Promise<{ stdout: string; exitCode: number }> {
